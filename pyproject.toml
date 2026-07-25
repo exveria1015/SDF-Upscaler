@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdf-upscaler"
+version = "0.1.0"
+description = "Deterministic Alpha-SDF, Color-SDF, and Adaptive-SDF x4 upscaling"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.2,<2.5",
+  "pillow>=11",
+  "scikit-image>=0.25",
+  "scipy>=1.15",
+]
+
+[project.scripts]
+sdf-upscale = "sdf_upscaler.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.11",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sdf_upscaler*"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
