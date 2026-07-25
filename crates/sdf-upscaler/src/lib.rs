@@ -5,6 +5,7 @@
 //! remain authoritative until cross-language parity gates pass.
 
 mod alpha;
+mod compat;
 mod diagnostics;
 mod error;
 mod image;
