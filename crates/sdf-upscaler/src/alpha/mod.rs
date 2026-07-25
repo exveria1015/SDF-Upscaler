@@ -2,7 +2,7 @@ use crate::{
     AlphaDiagnostics, AlphaInput, AlphaOptions, AlphaOutput, Plane, QualityBoundary, UpscaleError,
 };
 
-mod canonical;
+pub(crate) mod canonical;
 
 const SCALE: usize = 4;
 const LEVEL: f32 = 0.5;

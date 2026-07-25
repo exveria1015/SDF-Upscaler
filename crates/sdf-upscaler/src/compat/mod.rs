@@ -442,13 +442,14 @@ pub(crate) fn nearest_segments(
 ) -> SegmentQuery {
     assert!(!segments.is_empty());
     assert!(k > 0);
+    let tree = MidpointKdTree::build(segments);
     let mut candidate_distances = Vec::new();
     let mut candidate_indices = Vec::new();
     let mut exact_indices = Vec::new();
     let mut closest = Vec::new();
     let mut exact_distances = Vec::new();
     for &query in queries {
-        let candidates = midpoint_neighbors(segments, query, k);
+        let candidates = tree.neighbors(query, k);
         for &(distance, index) in &candidates {
             candidate_distances.push(distance as f32);
             candidate_indices.push(index as i64);
@@ -489,6 +490,422 @@ pub(crate) fn nearest_segments(
         closest,
         exact_distances,
     )
+}
+
+#[derive(Clone, Copy, Debug)]
+struct KdNode {
+    start: usize,
+    end: usize,
+    split_dim: isize,
+    split: f64,
+    less: usize,
+    greater: usize,
+}
+
+#[derive(Debug)]
+struct MidpointKdTree {
+    points: Vec<[f64; 2]>,
+    indices: Vec<usize>,
+    nodes: Vec<KdNode>,
+    mins: [f64; 2],
+    maxes: [f64; 2],
+}
+
+impl MidpointKdTree {
+    fn build(segments: &[Segment]) -> Self {
+        let points = segments
+            .iter()
+            .map(|segment| {
+                [
+                    f64::from((segment.start[0] + segment.end[0]) * 0.5),
+                    f64::from((segment.start[1] + segment.end[1]) * 0.5),
+                ]
+            })
+            .collect::<Vec<_>>();
+        let mut mins = [f64::INFINITY; 2];
+        let mut maxes = [f64::NEG_INFINITY; 2];
+        for point in &points {
+            for axis in 0..2 {
+                mins[axis] = mins[axis].min(point[axis]);
+                maxes[axis] = maxes[axis].max(point[axis]);
+            }
+        }
+        let mut tree = Self {
+            indices: (0..points.len()).collect(),
+            points,
+            nodes: Vec::new(),
+            mins,
+            maxes,
+        };
+        tree.build_node(0, segments.len());
+        tree
+    }
+
+    fn build_node(&mut self, start: usize, end: usize) -> usize {
+        let node_index = self.nodes.len();
+        self.nodes.push(KdNode {
+            start,
+            end,
+            split_dim: -1,
+            split: 0.0,
+            less: 0,
+            greater: 0,
+        });
+        if end - start <= 16 {
+            return node_index;
+        }
+
+        let mut mins = [f64::INFINITY; 2];
+        let mut maxes = [f64::NEG_INFINITY; 2];
+        for &index in &self.indices[start..end] {
+            for axis in 0..2 {
+                mins[axis] = mins[axis].min(self.points[index][axis]);
+                maxes[axis] = maxes[axis].max(self.points[index][axis]);
+            }
+        }
+        let mut split_dim = 0;
+        let mut size = 0.0_f64;
+        for axis in 0..2 {
+            let spread = maxes[axis] - mins[axis];
+            if spread > size {
+                size = spread;
+                split_dim = axis;
+            }
+        }
+        if size == 0.0 {
+            return node_index;
+        }
+
+        let middle = start + (end - start) / 2;
+        nth_element_by(&mut self.indices, start, middle, end, |left, right| {
+            self.points[left][split_dim] < self.points[right][split_dim]
+        });
+        let mut split = self.points[self.indices[middle]][split_dim];
+        let mut partition = partition_by(&mut self.indices, start, middle, |index| {
+            self.points[index][split_dim] < split
+        });
+        if partition == start {
+            let minimum = self.indices[start..end]
+                .iter()
+                .copied()
+                .min_by(|&left, &right| {
+                    self.points[left][split_dim].total_cmp(&self.points[right][split_dim])
+                })
+                .unwrap();
+            split = next_up(self.points[minimum][split_dim]);
+            partition = partition_by(&mut self.indices, start, end, |index| {
+                self.points[index][split_dim] < split
+            });
+        } else if partition == end {
+            let maximum = self.indices[start..end]
+                .iter()
+                .copied()
+                .max_by(|&left, &right| {
+                    self.points[left][split_dim].total_cmp(&self.points[right][split_dim])
+                })
+                .unwrap();
+            split = self.points[maximum][split_dim];
+            partition = partition_by(&mut self.indices, start, end, |index| {
+                self.points[index][split_dim] < split
+            });
+        }
+        assert!(partition > start && partition < end);
+        let less = self.build_node(start, partition);
+        let greater = self.build_node(partition, end);
+        self.nodes[node_index] = KdNode {
+            start,
+            end,
+            split_dim: split_dim as isize,
+            split,
+            less,
+            greater,
+        };
+        node_index
+    }
+
+    fn neighbors(&self, query: [f32; 2], k: usize) -> Vec<(f64, usize)> {
+        let capacity = k.min(self.points.len());
+        let query = [f64::from(query[0]), f64::from(query[1])];
+        let mut side_distances = [0.0_f64; 2];
+        let mut minimum_distance = 0.0_f64;
+        for axis in 0..2 {
+            let side = if query[axis] < self.mins[axis] {
+                self.mins[axis] - query[axis]
+            } else if query[axis] > self.maxes[axis] {
+                query[axis] - self.maxes[axis]
+            } else {
+                0.0
+            };
+            side_distances[axis] = side * side;
+            minimum_distance += side_distances[axis];
+        }
+        let mut current = KdQueueItem {
+            priority: minimum_distance,
+            node: 0,
+            side_distances,
+        };
+        let mut pending = Vec::new();
+        let mut neighbors = Vec::with_capacity(capacity);
+        let mut upper_bound = f64::INFINITY;
+
+        loop {
+            let node = self.nodes[current.node];
+            if node.split_dim == -1 {
+                for &index in &self.indices[node.start..node.end] {
+                    let dy = self.points[index][0] - query[0];
+                    let dx = self.points[index][1] - query[1];
+                    let distance_squared = dy * dy + dx * dx;
+                    if distance_squared < upper_bound {
+                        if neighbors.len() == capacity {
+                            heap_pop(&mut neighbors);
+                        }
+                        heap_push(
+                            &mut neighbors,
+                            HeapItem {
+                                priority: -distance_squared,
+                                index,
+                            },
+                        );
+                        if neighbors.len() == capacity {
+                            upper_bound = -neighbors[0].priority;
+                        }
+                    }
+                }
+                if pending.is_empty() {
+                    break;
+                }
+                current = kd_queue_pop(&mut pending);
+                continue;
+            }
+            if current.priority > upper_bound {
+                break;
+            }
+            let axis = node.split_dim as usize;
+            let (near, far, side) = if query[axis] < node.split {
+                (node.less, node.greater, node.split - query[axis])
+            } else {
+                (node.greater, node.less, query[axis] - node.split)
+            };
+            let mut near_item = KdQueueItem {
+                priority: current.priority,
+                node: near,
+                side_distances: current.side_distances,
+            };
+            let mut far_item = KdQueueItem {
+                priority: current.priority + side * side - current.side_distances[axis],
+                node: far,
+                side_distances: current.side_distances,
+            };
+            far_item.side_distances[axis] = side * side;
+            if near_item.priority > far_item.priority {
+                std::mem::swap(&mut near_item, &mut far_item);
+            }
+            if far_item.priority <= upper_bound {
+                kd_queue_push(&mut pending, far_item);
+            }
+            current = near_item;
+        }
+
+        let mut output = vec![(0.0, 0); neighbors.len()];
+        for target in (0..output.len()).rev() {
+            let item = heap_pop(&mut neighbors);
+            output[target] = ((-item.priority).sqrt(), item.index);
+        }
+        output
+    }
+}
+
+fn next_up(value: f64) -> f64 {
+    if value.is_nan() || value == f64::INFINITY {
+        value
+    } else if value == 0.0 {
+        f64::from_bits(1)
+    } else {
+        let bits = value.to_bits();
+        f64::from_bits(if value > 0.0 { bits + 1 } else { bits - 1 })
+    }
+}
+
+fn nth_element_by(
+    values: &mut [usize],
+    mut first: usize,
+    nth: usize,
+    mut last: usize,
+    less: impl Fn(usize, usize) -> bool + Copy,
+) {
+    while last - first > 3 {
+        let cut = unguarded_partition_pivot(values, first, last, less);
+        if cut <= nth {
+            first = cut;
+        } else {
+            last = cut;
+        }
+    }
+    insertion_sort_by(values, first, last, less);
+}
+
+fn unguarded_partition_pivot(
+    values: &mut [usize],
+    first: usize,
+    last: usize,
+    less: impl Fn(usize, usize) -> bool + Copy,
+) -> usize {
+    let middle = first + (last - first) / 2;
+    move_median_to_first(values, first, first + 1, middle, last - 1, less);
+    unguarded_partition_by(values, first + 1, last, first, less)
+}
+
+fn move_median_to_first(
+    values: &mut [usize],
+    result: usize,
+    left: usize,
+    middle: usize,
+    right: usize,
+    less: impl Fn(usize, usize) -> bool,
+) {
+    let target = if less(values[left], values[middle]) {
+        if less(values[middle], values[right]) {
+            middle
+        } else if less(values[left], values[right]) {
+            right
+        } else {
+            left
+        }
+    } else if less(values[left], values[right]) {
+        left
+    } else if less(values[middle], values[right]) {
+        right
+    } else {
+        middle
+    };
+    values.swap(result, target);
+}
+
+fn unguarded_partition_by(
+    values: &mut [usize],
+    mut first: usize,
+    mut last: usize,
+    pivot: usize,
+    less: impl Fn(usize, usize) -> bool,
+) -> usize {
+    loop {
+        while less(values[first], values[pivot]) {
+            first += 1;
+        }
+        last -= 1;
+        while less(values[pivot], values[last]) {
+            last -= 1;
+        }
+        if first >= last {
+            return first;
+        }
+        values.swap(first, last);
+        first += 1;
+    }
+}
+
+fn insertion_sort_by(
+    values: &mut [usize],
+    first: usize,
+    last: usize,
+    less: impl Fn(usize, usize) -> bool,
+) {
+    if first == last {
+        return;
+    }
+    for index in first + 1..last {
+        if less(values[index], values[first]) {
+            let value = values[index];
+            values.copy_within(first..index, first + 1);
+            values[first] = value;
+        } else {
+            let value = values[index];
+            let mut position = index;
+            while position > first && less(value, values[position - 1]) {
+                values[position] = values[position - 1];
+                position -= 1;
+            }
+            values[position] = value;
+        }
+    }
+}
+
+fn partition_by(
+    values: &mut [usize],
+    mut first: usize,
+    mut last: usize,
+    predicate: impl Fn(usize) -> bool,
+) -> usize {
+    loop {
+        loop {
+            if first == last {
+                return first;
+            }
+            if predicate(values[first]) {
+                first += 1;
+            } else {
+                break;
+            }
+        }
+        loop {
+            if first == last {
+                return first;
+            }
+            last -= 1;
+            if predicate(values[last]) {
+                break;
+            }
+        }
+        values.swap(first, last);
+        first += 1;
+    }
+}
+
+#[derive(Clone, Copy)]
+struct KdQueueItem {
+    priority: f64,
+    node: usize,
+    side_distances: [f64; 2],
+}
+
+fn kd_queue_push(heap: &mut Vec<KdQueueItem>, item: KdQueueItem) {
+    heap.push(item);
+    let mut child = heap.len() - 1;
+    while child > 0 {
+        let parent = (child - 1) / 2;
+        if heap[child].priority >= heap[parent].priority {
+            break;
+        }
+        heap.swap(child, parent);
+        child = parent;
+    }
+}
+
+fn kd_queue_pop(heap: &mut Vec<KdQueueItem>) -> KdQueueItem {
+    let output = heap[0];
+    let last = heap.pop().unwrap();
+    if heap.is_empty() {
+        return output;
+    }
+    heap[0] = last;
+    let mut parent = 0;
+    loop {
+        let left = parent * 2 + 1;
+        let right = left + 1;
+        let left_smaller = left < heap.len() && heap[parent].priority > heap[left].priority;
+        let right_smaller = right < heap.len() && heap[parent].priority > heap[right].priority;
+        if !left_smaller && !right_smaller {
+            break;
+        }
+        let child = if right < heap.len() && heap[left].priority > heap[right].priority {
+            right
+        } else {
+            left
+        };
+        heap.swap(parent, child);
+        parent = child;
+    }
+    output
 }
 
 #[derive(Clone, Copy)]
@@ -533,42 +950,6 @@ fn heap_pop(heap: &mut Vec<HeapItem>) -> HeapItem {
         };
         heap.swap(parent, child);
         parent = child;
-    }
-    output
-}
-
-fn midpoint_neighbors(segments: &[Segment], query: [f32; 2], k: usize) -> Vec<(f64, usize)> {
-    let capacity = k.min(segments.len());
-    let mut heap = Vec::with_capacity(capacity);
-    let mut upper_bound = f64::INFINITY;
-    for (index, segment) in segments.iter().enumerate() {
-        // NumPy forms the midpoint in f32 before cKDTree stores it as f64.
-        let midpoint_y = (segment.start[0] + segment.end[0]) * 0.5;
-        let midpoint_x = (segment.start[1] + segment.end[1]) * 0.5;
-        let dy = f64::from(midpoint_y) - f64::from(query[0]);
-        let dx = f64::from(midpoint_x) - f64::from(query[1]);
-        let distance_squared = dy * dy + dx * dx;
-        if distance_squared < upper_bound {
-            if heap.len() == capacity {
-                heap_pop(&mut heap);
-            }
-            heap_push(
-                &mut heap,
-                HeapItem {
-                    priority: -distance_squared,
-                    index,
-                },
-            );
-            if heap.len() == capacity {
-                upper_bound = -heap[0].priority;
-            }
-        }
-    }
-    // cKDTree heap-sorts by popping farthest-first into the result backwards.
-    let mut output = vec![(0.0, 0); heap.len()];
-    for target in (0..output.len()).rev() {
-        let item = heap_pop(&mut heap);
-        output[target] = ((-item.priority).sqrt(), item.index);
     }
     output
 }

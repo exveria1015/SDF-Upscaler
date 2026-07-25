@@ -13,7 +13,7 @@ const NEAREST_SEGMENTS: usize = 12;
 
 #[derive(Debug)]
 #[allow(dead_code)] // Intermediate planes are retained for differential parity tests.
-pub(super) struct CanonicalStages {
+pub(crate) struct CanonicalStages {
     pub base: Vec<f32>,
     pub candidate: Vec<f32>,
     pub reliability: Vec<f32>,
@@ -30,7 +30,7 @@ pub(super) struct CanonicalStages {
 
 #[derive(Debug)]
 #[allow(dead_code)] // Contour metadata is consumed by the following Color-SDF milestone.
-pub(super) struct SegmentGraph {
+pub(crate) struct SegmentGraph {
     pub segments: Vec<Segment>,
     pub tangents: Vec<[f32; 2]>,
     pub contour_ids: Vec<i32>,
@@ -39,7 +39,7 @@ pub(super) struct SegmentGraph {
     pub contour_closed: Vec<u8>,
 }
 
-pub(super) fn canonical_stages(
+pub(crate) fn canonical_stages(
     alpha: &[f32],
     width: usize,
     height: usize,
@@ -231,7 +231,13 @@ fn segment_adaptive_lanczos(
         .map(|(&observed, &analytic)| observed - analytic)
         .collect::<Vec<_>>();
 
-    let segment_reliability = hard_edge_segment_reliability(alpha, width, height, graph);
+    let segment_reliability = hard_edge_segment_reliability(
+        alpha,
+        width,
+        height,
+        graph,
+        Some(LineArtReliabilityOptions::canonical()),
+    );
     let mut candidate = base.to_vec();
     let mut reliability = vec![0.0_f32; base.len()];
     let support = 3_isize;
@@ -292,11 +298,39 @@ fn segment_adaptive_lanczos(
     }
 }
 
-fn hard_edge_segment_reliability(
+#[derive(Clone, Copy)]
+pub(crate) struct LineArtReliabilityOptions {
+    pub medial_radius_limit: f32,
+    pub min_component: usize,
+    pub neighborhood: usize,
+    pub peak_min: f32,
+    pub max_foreground_area: Option<usize>,
+    pub max_canvas_area: Option<usize>,
+    pub ratio_start: f64,
+    pub ratio_stop: f64,
+}
+
+impl LineArtReliabilityOptions {
+    fn canonical() -> Self {
+        Self {
+            medial_radius_limit: 0.75,
+            min_component: 3,
+            neighborhood: 3,
+            peak_min: 0.8,
+            max_foreground_area: Some(4096),
+            max_canvas_area: Some(16384),
+            ratio_start: 0.05,
+            ratio_stop: 0.15,
+        }
+    }
+}
+
+pub(crate) fn hard_edge_segment_reliability(
     alpha: &[f32],
     width: usize,
     height: usize,
     graph: &SegmentGraph,
+    line_art: Option<LineArtReliabilityOptions>,
 ) -> Vec<f32> {
     let gradient_x = sobel_nearest(alpha, width, height, 1)
         .into_iter()
@@ -339,28 +373,30 @@ fn hard_edge_segment_reliability(
             gradient_score * support_score
         })
         .collect::<Vec<_>>();
-    let line_art_gate = persistent_centerline_support_gate(
-        alpha,
-        &vec![1.0; alpha.len()],
-        width,
-        height,
-        CenterlineOptions {
-            medial_radius_limit: 0.75,
-            min_component: 3,
-            neighborhood: 3,
-            peak_min: 0.8,
-            peak_stop: None,
-            max_foreground_area: Some(4096),
-            max_canvas_area: Some(16384),
-            global_ratio: Some((0.05, 0.15)),
-        },
-    );
-    for (value, segment) in reliability.iter_mut().zip(&graph.segments) {
-        let midpoint = [
-            (segment.start[0] + segment.end[0]) * 0.5,
-            (segment.start[1] + segment.end[1]) * 0.5,
-        ];
-        *value = value.max(bilinear_sample(&line_art_gate, width, height, midpoint));
+    if let Some(line_art) = line_art {
+        let line_art_gate = persistent_centerline_support_gate(
+            alpha,
+            &vec![1.0; alpha.len()],
+            width,
+            height,
+            CenterlineOptions {
+                medial_radius_limit: line_art.medial_radius_limit,
+                min_component: line_art.min_component,
+                neighborhood: line_art.neighborhood,
+                peak_min: line_art.peak_min,
+                peak_stop: None,
+                max_foreground_area: line_art.max_foreground_area,
+                max_canvas_area: line_art.max_canvas_area,
+                global_ratio: Some((line_art.ratio_start, line_art.ratio_stop)),
+            },
+        );
+        for (value, segment) in reliability.iter_mut().zip(&graph.segments) {
+            let midpoint = [
+                (segment.start[0] + segment.end[0]) * 0.5,
+                (segment.start[1] + segment.end[1]) * 0.5,
+            ];
+            *value = value.max(bilinear_sample(&line_art_gate, width, height, midpoint));
+        }
     }
     reliability
 }
@@ -732,7 +768,7 @@ fn bounded_residual(
         .collect()
 }
 
-fn hr_queries(width: usize, height: usize) -> Vec<[f32; 2]> {
+pub(crate) fn hr_queries(width: usize, height: usize) -> Vec<[f32; 2]> {
     (0..height)
         .flat_map(|y| {
             (0..width).map(move |x| {
@@ -765,7 +801,7 @@ fn bilinear_sample(plane: &[f32], width: usize, height: usize, point: [f32; 2]) 
         + plane[y1 * width + x1] * fy * fx
 }
 
-fn lanczos_weight(value: f32) -> f32 {
+pub(crate) fn lanczos_weight(value: f32) -> f32 {
     if value.abs() >= 3.0 {
         0.0
     } else {
@@ -782,7 +818,7 @@ fn sinc(value: f32) -> f32 {
     }
 }
 
-fn smoothstep(value: f32) -> f32 {
+pub(crate) fn smoothstep(value: f32) -> f32 {
     let clipped = value.clamp(0.0, 1.0);
     clipped * clipped * (3.0 - 2.0 * clipped)
 }
@@ -802,6 +838,13 @@ mod tests {
     }
 
     fn bytes(values: &[f32]) -> Vec<u8> {
+        values
+            .iter()
+            .flat_map(|value| value.to_le_bytes())
+            .collect()
+    }
+
+    fn i64_bytes(values: &[i64]) -> Vec<u8> {
         values
             .iter()
             .flat_map(|value| value.to_le_bytes())
@@ -867,6 +910,24 @@ mod tests {
         assert_eq!(
             bytes(&stages.segment_coverage),
             intermediate!("geometry/segment_coverage_hr_f32.raw")
+        );
+        let lr_queries = (0..HEIGHT)
+            .flat_map(|y| (0..WIDTH).map(move |x| [y as f32, x as f32]))
+            .collect::<Vec<_>>();
+        let (_, _, lr_indices, _, _) =
+            nearest_segments(&stages.graph.segments, &lr_queries, NEAREST_SEGMENTS);
+        assert_eq!(
+            i64_bytes(&lr_indices),
+            intermediate!("geometry/lr_nearest_segment_i64.raw")
+        );
+        let (_, _, hr_indices, _, _) = nearest_segments(
+            &stages.graph.segments,
+            &hr_queries(WIDTH * SCALE, HEIGHT * SCALE),
+            NEAREST_SEGMENTS,
+        );
+        assert_eq!(
+            i64_bytes(&hr_indices),
+            intermediate!("geometry/hr_nearest_segment_i64.raw")
         );
     }
 
@@ -951,7 +1012,7 @@ mod tests {
     }
 
     #[test]
-    fn corpus_reports_remaining_line_art_gaps() {
+    fn corpus_matches_python_quantized_outputs() {
         macro_rules! case {
             ($name:literal, $width:literal, $height:literal) => {{
                 let gap = corpus_gap(
