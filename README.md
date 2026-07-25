@@ -68,11 +68,36 @@ The original implementation names remain available for compatibility, such as
 `resize_alpha_main_x4`, `upscale_rgba_sal_classic_x4`, and
 `upscale_rgba_adaptive_color_sdf_x4`.
 
+## Rust crate milestone
+
+The repository also contains a pure-Rust Cargo workspace:
+
+```bash
+cargo test --workspace
+cargo run --release -p sdf-upscale-cli -- \
+  input.png -o alpha_x4.png --backend alpha-experimental
+```
+
+The library package is `sdf-upscaler` and the binary is `sdf-upscale`. The
+first Rust milestone deliberately exposes only
+`upscale_alpha_sdf_x4_experimental`. It does **not** claim parity with the
+canonical Python `upscale_alpha_sdf_x4`.
+
+Against the frozen 22x18 Python Alpha-SDF fixture, the current Rust route has
+zero 0.5-threshold topology changes, 1.9722/255 MAE, and 51/255 maximum error.
+The diagnostics report `experimental_not_python_parity`; Color-SDF and
+Adaptive-SDF Rust APIs will not be published until their real kernels and
+cross-language gates exist.
+
+See [the Rust crate status and parity route](docs/RUST_CRATE.md).
+
 ## Development
 
 ```bash
 uv run pytest
 uv run ruff check src tests
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 The golden-parity test freezes outputs copied from the source Upscaler working

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "kind": "python_alpha_sdf_x4_golden",
+  "input": {
+    "width": 22,
+    "height": 18,
+    "dtype": "uint8",
+    "sha256": "9a3f1b748b68f66f27732f93ebc321c6c34ccce1517cc3cb1a9cf9ac63b27d13"
+  },
+  "output": {
+    "width": 88,
+    "height": 72,
+    "float_dtype": "little-endian float32",
+    "float_sha256": "3da8d1b79bd605178a918535ee1fd0923f09e2858da882eff86abf5f685c7135",
+    "uint8_sha256": "777276c9bbee3a9ebd57b6ae9ae80e178280d6dc0fea6ace970347b4f95d4bd3"
+  },
+  "versions": {
+    "numpy": "2.4.6",
+    "pillow": "12.3.0",
+    "scipy": "1.18.0",
+    "scikit-image": "0.26.0",
+    "sdf-upscaler": "0.1.0"
+  }
+}

@@ -1,0 +1,11 @@
+[package]
+name = "sdf-upscaler"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Pure-Rust SDF upscaling kernels and checked image types"
+
+[dependencies]
+serde.workspace = true

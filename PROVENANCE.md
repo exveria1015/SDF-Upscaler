@@ -25,3 +25,17 @@ tests, and documentation were then added in this repository.
 No license file existed at the source repository root at extraction time. This
 repository intentionally does not invent a license; publishing is blocked
 until the owner chooses one.
+
+## Rust milestone
+
+The first pure-Rust Alpha-SDF milestone was added on 2026-07-25. Its
+Lanczos-3, marching-squares, topology-lock, ROI, and LR-cell reprojection
+primitives were adapted from
+`/home/exveria/Git/Upscaler/rust/upscaler-cli/src/native_alpha.rs` at the same
+source Git HEAD recorded above. The orchestration was redesigned as a
+slice-based library API and remains explicitly marked
+`experimental_not_python_parity`.
+
+The authoritative Python fixture inputs and outputs are stored under
+`fixtures/parity/alpha/`; their generator records NumPy, Pillow, SciPy,
+scikit-image, and `sdf-upscaler` versions.
