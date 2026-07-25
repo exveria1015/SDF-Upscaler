@@ -51,3 +51,40 @@ pub struct ColorOutput {
     pub image: Rgba8,
     pub diagnostics: ColorDiagnostics,
 }
+
+/// Dense evidence emitted by the edge-local structure reconstruction.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StructureFusionDiagnostics {
+    pub structure_candidate_hr: Plane<[f32; 3]>,
+    pub structure_residual_hr: Plane<[f32; 3]>,
+    pub structure_gate_hr: Plane<f32>,
+    pub reprojection_gain_lr: Plane<f32>,
+    pub reprojection_gate_hr: Plane<f32>,
+    pub applied_gate_hr: Plane<f32>,
+    pub unconstrained_rgb_hr: Plane<[u8; 3]>,
+}
+
+/// Evidence and safety gates emitted by Adaptive-SDF.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdaptiveDiagnostics {
+    pub implementation: &'static str,
+    pub sal: ColorDiagnostics,
+    pub structure: StructureFusionDiagnostics,
+    pub structure_interior_gate_hr: Plane<f32>,
+    pub median_active_mask_hr: Plane<u8>,
+    pub median_residual_luma_hr: Plane<f32>,
+    pub reprojection_gate_lr: Plane<f32>,
+    pub reprojection_gate_hr: Plane<f32>,
+    pub lr_error_base: f32,
+    pub lr_error_candidate_before: f32,
+    pub lr_error_candidate_after: f32,
+    pub lr_error_final: f32,
+    pub global_reprojection_fallback: bool,
+}
+
+/// Adaptive-SDF RGBA image plus diagnostics.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AdaptiveOutput {
+    pub image: Rgba8,
+    pub diagnostics: AdaptiveDiagnostics,
+}

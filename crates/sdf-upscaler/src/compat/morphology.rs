@@ -91,10 +91,32 @@ pub(crate) fn label_8(mask: &[bool], width: usize, height: usize) -> (Vec<usize>
 }
 
 pub(crate) fn distance_transform_edt(mask: &[bool], width: usize, height: usize) -> Vec<f32> {
+    distance_transform_edt_with_indices(mask, width, height).0
+}
+
+/// SciPy-compatible EDT of nonzero `mask` values, including nearest zero
+/// coordinates. Equal distances retain the lower X coordinate and then the
+/// lower Y coordinate, matching the feature-transform order used by ndimage.
+pub(crate) fn distance_transform_edt_with_indices(
+    mask: &[bool],
+    width: usize,
+    height: usize,
+) -> (Vec<f32>, Vec<usize>, Vec<usize>) {
     assert_eq!(mask.len(), width * height);
     let feature = mask.iter().map(|&value| !value).collect::<Vec<_>>();
-    assert!(feature.iter().any(|&value| value));
+    if !feature.iter().any(|&value| value) {
+        // ndimage's all-foreground sentinel is the virtual coordinate
+        // (-1, 0), rather than a zero-distance image boundary.
+        let mut distance = Vec::with_capacity(mask.len());
+        for y in 0..height {
+            for x in 0..width {
+                distance.push((((y + 1) * (y + 1) + x * x) as f64).sqrt() as f32);
+            }
+        }
+        return (distance, vec![usize::MAX; mask.len()], vec![0; mask.len()]);
+    }
     let mut vertical_distance = vec![usize::MAX; mask.len()];
+    let mut vertical_y = vec![0_usize; mask.len()];
     for x in 0..width {
         let mut last = None;
         for y in 0..height {
@@ -104,6 +126,7 @@ pub(crate) fn distance_transform_edt(mask: &[bool], width: usize, height: usize)
             }
             if let Some(source_y) = last {
                 vertical_distance[index] = (y - source_y) * (y - source_y);
+                vertical_y[index] = source_y;
             }
         }
         last = None;
@@ -116,21 +139,26 @@ pub(crate) fn distance_transform_edt(mask: &[bool], width: usize, height: usize)
                 let candidate = (source_y - y) * (source_y - y);
                 if candidate < vertical_distance[index] {
                     vertical_distance[index] = candidate;
+                    vertical_y[index] = source_y;
                 }
             }
         }
     }
     let mut output = vec![0.0_f32; mask.len()];
+    let mut nearest_y = vec![0_usize; mask.len()];
+    let mut nearest_x = vec![0_usize; mask.len()];
     for y in 0..height {
-        let squared = edt_row(&vertical_distance[y * width..(y + 1) * width]);
+        let (squared, sites) = edt_row(&vertical_distance[y * width..(y + 1) * width]);
         for x in 0..width {
             output[y * width + x] = (squared[x] as f64).sqrt() as f32;
+            nearest_x[y * width + x] = sites[x];
+            nearest_y[y * width + x] = vertical_y[y * width + sites[x]];
         }
     }
-    output
+    (output, nearest_y, nearest_x)
 }
 
-fn edt_row(vertical: &[usize]) -> Vec<usize> {
+fn edt_row(vertical: &[usize]) -> (Vec<usize>, Vec<usize>) {
     let valid = vertical
         .iter()
         .enumerate()
@@ -162,6 +190,7 @@ fn edt_row(vertical: &[usize]) -> Vec<usize> {
     }
     let count = envelope + 1;
     let mut squared = vec![0_usize; vertical.len()];
+    let mut nearest = vec![0_usize; vertical.len()];
     let mut active = 0_usize;
     for (x, value) in squared.iter_mut().enumerate() {
         while active + 1 < count && boundaries[active + 1] < x as f64 {
@@ -170,8 +199,9 @@ fn edt_row(vertical: &[usize]) -> Vec<usize> {
         let site = sites[active];
         let delta = x.abs_diff(site);
         *value = delta * delta + vertical[site];
+        nearest[x] = site;
     }
-    squared
+    (squared, nearest)
 }
 
 #[cfg(test)]

@@ -14,11 +14,14 @@ mod morphology;
 
 #[allow(unused_imports)]
 // Direct-path integration tests include this module without Alpha-SDF.
-pub(crate) use morphology::{distance_transform_edt, label_8, skeletonize_zhang};
+pub(crate) use morphology::{
+    distance_transform_edt, distance_transform_edt_with_indices, label_8, skeletonize_zhang,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Resample {
     Bilinear,
+    Bicubic,
     Lanczos3,
 }
 
@@ -87,6 +90,7 @@ fn pillow_weights(
     let filter_scale = scale.max(1.0);
     let support = match filter {
         Resample::Bilinear => 1.0 * filter_scale,
+        Resample::Bicubic => 2.0 * filter_scale,
         Resample::Lanczos3 => 3.0 * filter_scale,
     };
     let center = (destination as f64 + 0.5) * scale;
@@ -100,6 +104,7 @@ fn pillow_weights(
         let position = (source as f64 + 0.5 - center) / filter_scale;
         let weight = match filter {
             Resample::Bilinear => (1.0 - position.abs()).max(0.0),
+            Resample::Bicubic => bicubic(position),
             Resample::Lanczos3 => lanczos3(position),
         };
         if weight != 0.0 {
@@ -113,6 +118,17 @@ fn pillow_weights(
         .collect()
 }
 
+fn bicubic(value: f64) -> f64 {
+    let value = value.abs();
+    if value < 1.0 {
+        ((1.5 * value - 2.5) * value) * value + 1.0
+    } else if value < 2.0 {
+        (((-0.5 * value + 2.5) * value - 4.0) * value) + 2.0
+    } else {
+        0.0
+    }
+}
+
 fn lanczos3(value: f64) -> f64 {
     if value == 0.0 {
         1.0
@@ -122,6 +138,76 @@ fn lanczos3(value: f64) -> f64 {
         let pi_value = core::f64::consts::PI * value;
         (pi_value.sin() / pi_value) * ((pi_value / 3.0).sin() / (pi_value / 3.0))
     }
+}
+
+/// Pillow-compatible 8-bit three-channel resize.
+///
+/// Pillow's 8bpc path quantizes normalized coefficients to 22-bit fixed
+/// point and clips to u8 after each separable pass. That intermediate
+/// quantization is observable and differs from resizing three mode-F planes.
+pub(crate) fn resize_rgb_u8(
+    input: &[u8],
+    width: usize,
+    height: usize,
+    out_width: usize,
+    out_height: usize,
+    filter: Resample,
+) -> Vec<u8> {
+    assert_eq!(input.len(), width * height * 3);
+    let horizontal = resize_rgb_u8_axis(input, width, height, out_width, filter, true);
+    resize_rgb_u8_axis(&horizontal, out_width, height, out_height, filter, false)
+}
+
+fn resize_rgb_u8_axis(
+    input: &[u8],
+    width: usize,
+    height: usize,
+    output_size: usize,
+    filter: Resample,
+    horizontal: bool,
+) -> Vec<u8> {
+    const PRECISION_BITS: i32 = 22;
+    const ROUNDING: i64 = 1_i64 << (PRECISION_BITS - 1);
+
+    let source_size = if horizontal { width } else { height };
+    let weights = (0..output_size)
+        .map(|destination| {
+            pillow_weights(source_size, output_size, destination, filter)
+                .into_iter()
+                .map(|(source, coefficient)| {
+                    // Pillow's normalize_coeffs_8bpc uses ROUND_UP, whose
+                    // cast truncates toward zero after adding 0.5.
+                    let fixed = (coefficient * f64::from(1_i32 << PRECISION_BITS) + 0.5) as i32;
+                    (source, fixed)
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    let (out_width, out_height) = if horizontal {
+        (output_size, height)
+    } else {
+        (width, output_size)
+    };
+    let mut output = vec![0_u8; out_width * out_height * 3];
+    for y in 0..out_height {
+        for x in 0..out_width {
+            let destination = if horizontal { x } else { y };
+            for channel in 0..3 {
+                let mut value = ROUNDING;
+                for &(source, coefficient) in &weights[destination] {
+                    let sample = if horizontal {
+                        input[(y * width + source) * 3 + channel]
+                    } else {
+                        input[(source * width + x) * 3 + channel]
+                    };
+                    value += i64::from(sample) * i64::from(coefficient);
+                }
+                output[(y * out_width + x) * 3 + channel] =
+                    (value >> PRECISION_BITS).clamp(0, 255) as u8;
+            }
+        }
+    }
+    output
 }
 
 pub(crate) fn sobel_nearest(input: &[f32], width: usize, height: usize, axis: usize) -> Vec<f32> {
@@ -952,4 +1038,21 @@ fn heap_pop(heap: &mut Vec<HeapItem>) -> HeapItem {
         parent = child;
     }
     output
+}
+
+#[cfg(test)]
+mod resize_tests {
+    use super::*;
+
+    #[test]
+    fn pillow_rgb_lanczos_matches_adaptive_fixture() {
+        let input =
+            include_bytes!("../../../../fixtures/parity/adaptive/fixed/bounded_visible_rgb_u8.raw");
+        let expected =
+            include_bytes!("../../../../fixtures/parity/adaptive/fixed/bounded_lanczos_rgb_u8.raw");
+        assert_eq!(
+            resize_rgb_u8(input, 22, 18, 88, 72, Resample::Lanczos3),
+            expected
+        );
+    }
 }

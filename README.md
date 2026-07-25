@@ -68,26 +68,30 @@ The original implementation names remain available for compatibility, such as
 `resize_alpha_main_x4`, `upscale_rgba_sal_classic_x4`, and
 `upscale_rgba_adaptive_color_sdf_x4`.
 
-## Rust crate milestone
+## Pure-Rust crate
 
 The repository also contains a pure-Rust Cargo workspace:
 
 ```bash
 cargo test --workspace
+
+# Adaptive-SDF RGBA x4 (default)
 cargo run --release -p sdf-upscale-cli -- \
-  input.png -o alpha_x4.png --backend alpha-experimental
+  input.png -o output.png
+
+# Color-SDF or Alpha-SDF
+cargo run --release -p sdf-upscale-cli -- \
+  input.png -o color_x4.png --backend color
+cargo run --release -p sdf-upscale-cli -- \
+  input.png -o alpha_x4.png --backend alpha
 ```
 
-The library package is `sdf-upscaler` and the binary is `sdf-upscale`. The
-first Rust milestone deliberately exposes only
-`upscale_alpha_sdf_x4_experimental`. It does **not** claim parity with the
-canonical Python `upscale_alpha_sdf_x4`.
-
-Against the frozen 22x18 Python Alpha-SDF fixture, the current Rust route has
-zero 0.5-threshold topology changes, 1.9722/255 MAE, and 51/255 maximum error.
-The diagnostics report `experimental_not_python_parity`; Color-SDF and
-Adaptive-SDF Rust APIs will not be published until their real kernels and
-cross-language gates exist.
+The dependency-light library package is `sdf-upscaler` and the image-I/O
+binary is `sdf-upscale`. It exposes canonical pure-Rust Alpha-, Color-, and
+Adaptive-SDF x4 APIs. Their quantized outputs are byte-exact on the pinned
+Python fixed fixtures and compact behavioral corpora, including hidden-RGB
+invariance and supplied-alpha preservation. The older Alpha ROI prototype
+remains available under the explicit `alpha-experimental` backend.
 
 See [the Rust crate status and parity route](docs/RUST_CRATE.md).
 

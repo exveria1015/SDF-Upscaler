@@ -6,25 +6,45 @@ use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
 use image::GenericImageView;
 use sdf_upscaler::{
-    ALPHA_EXPERIMENTAL_PIPELINE_ID, AlphaDiagnostics, AlphaInput, AlphaOptions, PlaneRef, VERSION,
-    quantize_alpha_u8, upscale_alpha_sdf_x4_experimental,
+    ADAPTIVE_CANONICAL_PIPELINE_ID, ALPHA_CANONICAL_PIPELINE_ID, ALPHA_EXPERIMENTAL_PIPELINE_ID,
+    AdaptiveOptions, AlphaInput, AlphaOptions, COLOR_CANONICAL_PIPELINE_ID, ColorOptions, PlaneRef,
+    Rgba8Ref, VERSION, quantize_alpha_u8, upscale_adaptive_sdf_x4, upscale_alpha_sdf_x4,
+    upscale_alpha_sdf_x4_experimental, upscale_color_sdf_x4,
 };
 use serde::Serialize;
+use serde_json::{Value, json};
 use walkdir::WalkDir;
 
 const IMAGE_EXTENSIONS: &[&str] = &["png", "webp", "tif", "tiff", "bmp", "jpg", "jpeg"];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum Backend {
-    /// Experimental ROI implementation; not yet Python Alpha-SDF parity.
+    /// Canonical Adaptive-SDF RGBA x4.
+    Adaptive,
+    /// Canonical Color-SDF / SAL-Classic RGBA x4.
+    Color,
+    /// Canonical Alpha-SDF grayscale x4.
+    Alpha,
+    /// Legacy experimental Alpha ROI route.
     AlphaExperimental,
+}
+
+impl Backend {
+    const fn pipeline_id(self) -> &'static str {
+        match self {
+            Self::Adaptive => ADAPTIVE_CANONICAL_PIPELINE_ID,
+            Self::Color => COLOR_CANONICAL_PIPELINE_ID,
+            Self::Alpha => ALPHA_CANONICAL_PIPELINE_ID,
+            Self::AlphaExperimental => ALPHA_EXPERIMENTAL_PIPELINE_ID,
+        }
+    }
 }
 
 #[derive(Debug, Parser)]
 #[command(
     name = "sdf-upscale",
     version,
-    about = "Pure-Rust experimental Alpha-SDF x4 upscaling"
+    about = "Pure-Rust Alpha-, Color-, and Adaptive-SDF x4 upscaling"
 )]
 struct Args {
     /// Single input image.
@@ -38,8 +58,8 @@ struct Args {
     #[arg(short, long, value_name = "PATH")]
     output: PathBuf,
 
-    /// Rust backend. Canonical Color/Adaptive backends are not exposed yet.
-    #[arg(long, value_enum, default_value_t = Backend::AlphaExperimental)]
+    /// Pure-Rust reconstruction backend.
+    #[arg(long, value_enum, default_value_t = Backend::Adaptive)]
     backend: Backend,
 
     /// Replace existing output files.
@@ -67,7 +87,7 @@ struct CliManifest {
     input: String,
     output: String,
     input_alpha_source: &'static str,
-    diagnostics: AlphaDiagnostics,
+    diagnostics: Value,
 }
 
 fn main() -> Result<()> {
@@ -84,11 +104,8 @@ fn run(args: Args) -> Result<()> {
         residual_cap: args.residual_cap,
         reprojection_guard: args.reprojection_guard,
     };
-    match args.backend {
-        Backend::AlphaExperimental => {}
-    }
     if let Some(input) = args.input {
-        process_one(&input, &args.output, options, args.overwrite)?;
+        process_one(&input, &args.output, args.backend, options, args.overwrite)?;
         println!("{}", args.output.canonicalize()?.display());
         return Ok(());
     }
@@ -102,7 +119,7 @@ fn run(args: Args) -> Result<()> {
     for (index, input) in inputs.iter().enumerate() {
         let relative = input.strip_prefix(&input_root)?;
         let output = output_root.join(relative).with_extension("png");
-        process_one(input, &output, options, args.overwrite)?;
+        process_one(input, &output, args.backend, options, args.overwrite)?;
         println!(
             "[{}/{}] {} -> {}",
             index + 1,
@@ -135,7 +152,13 @@ fn discover(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(result)
 }
 
-fn process_one(input: &Path, output: &Path, options: AlphaOptions, overwrite: bool) -> Result<()> {
+fn process_one(
+    input: &Path,
+    output: &Path,
+    backend: Backend,
+    alpha_options: AlphaOptions,
+    overwrite: bool,
+) -> Result<()> {
     if output.exists() && !overwrite {
         bail!(
             "output exists; pass --overwrite to replace it: {}",
@@ -147,41 +170,105 @@ fn process_one(input: &Path, output: &Path, options: AlphaOptions, overwrite: bo
     let (width_u32, height_u32) = decoded.dimensions();
     let width = width_u32 as usize;
     let height = height_u32 as usize;
-    let (alpha, source) = if decoded.color().has_alpha() {
-        (
-            decoded
-                .to_rgba8()
-                .pixels()
-                .map(|pixel| pixel[3])
-                .collect::<Vec<_>>(),
-            "embedded_alpha",
-        )
+    let source = if decoded.color().has_alpha() {
+        "embedded_alpha"
     } else {
-        (decoded.to_luma8().into_raw(), "grayscale_or_luma")
+        "opaque_or_luma"
     };
-    let plane = PlaneRef::packed(width, height, &alpha)?;
-    let result = upscale_alpha_sdf_x4_experimental(AlphaInput::U8(plane), options)?;
-    let output_bytes = quantize_alpha_u8(result.alpha.as_slice());
-    write_alpha_png_atomic(
-        output,
-        result.alpha.width(),
-        result.alpha.height(),
-        &output_bytes,
-    )?;
+    let diagnostics = match backend {
+        Backend::Alpha | Backend::AlphaExperimental => {
+            let alpha = if decoded.color().has_alpha() {
+                decoded
+                    .to_rgba8()
+                    .pixels()
+                    .map(|pixel| pixel[3])
+                    .collect::<Vec<_>>()
+            } else {
+                decoded.to_luma8().into_raw()
+            };
+            let plane = PlaneRef::packed(width, height, &alpha)?;
+            let result = if backend == Backend::Alpha {
+                upscale_alpha_sdf_x4(AlphaInput::U8(plane))?
+            } else {
+                upscale_alpha_sdf_x4_experimental(AlphaInput::U8(plane), alpha_options)?
+            };
+            let output_bytes = quantize_alpha_u8(result.alpha.as_slice());
+            write_alpha_png_atomic(
+                output,
+                result.alpha.width(),
+                result.alpha.height(),
+                &output_bytes,
+                backend.pipeline_id(),
+            )?;
+            serde_json::to_value(result.diagnostics)?
+        }
+        Backend::Color | Backend::Adaptive => {
+            let rgba = decoded.to_rgba8();
+            let input = Rgba8Ref::packed(width, height, rgba.as_raw())?;
+            if backend == Backend::Color {
+                let result = upscale_color_sdf_x4(input, &ColorOptions::default())?;
+                let active = result
+                    .diagnostics
+                    .active_mask_hr
+                    .as_slice()
+                    .iter()
+                    .map(|&value| usize::from(value))
+                    .sum::<usize>();
+                write_rgba_png_atomic(
+                    output,
+                    result.image.width(),
+                    result.image.height(),
+                    result.image.as_slice(),
+                    backend.pipeline_id(),
+                )?;
+                json!({
+                    "implementation": result.diagnostics.implementation,
+                    "active_pixels": active,
+                })
+            } else {
+                let result = upscale_adaptive_sdf_x4(input, None, &AdaptiveOptions::default())?;
+                let diagnostics = json!({
+                    "implementation": result.diagnostics.implementation,
+                    "lr_error_base": result.diagnostics.lr_error_base,
+                    "lr_error_candidate_before":
+                        result.diagnostics.lr_error_candidate_before,
+                    "lr_error_candidate_after":
+                        result.diagnostics.lr_error_candidate_after,
+                    "lr_error_final": result.diagnostics.lr_error_final,
+                    "global_reprojection_fallback":
+                        result.diagnostics.global_reprojection_fallback,
+                });
+                write_rgba_png_atomic(
+                    output,
+                    result.image.width(),
+                    result.image.height(),
+                    result.image.as_slice(),
+                    backend.pipeline_id(),
+                )?;
+                diagnostics
+            }
+        }
+    };
     let manifest = CliManifest {
         schema_version: 1,
-        kind: ALPHA_EXPERIMENTAL_PIPELINE_ID,
+        kind: backend.pipeline_id(),
         crate_version: VERSION,
         input: input.to_string_lossy().into_owned(),
         output: output.to_string_lossy().into_owned(),
         input_alpha_source: source,
-        diagnostics: result.diagnostics,
+        diagnostics,
     };
     write_manifest_atomic(&manifest_path(output), &manifest)?;
     Ok(())
 }
 
-fn write_alpha_png_atomic(output: &Path, width: usize, height: usize, data: &[u8]) -> Result<()> {
+fn write_alpha_png_atomic(
+    output: &Path,
+    width: usize,
+    height: usize,
+    data: &[u8],
+    pipeline: &str,
+) -> Result<()> {
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -192,10 +279,33 @@ fn write_alpha_png_atomic(output: &Path, width: usize, height: usize, data: &[u8
     encoder.set_color(png::ColorType::Grayscale);
     encoder.set_depth(png::BitDepth::Eight);
     encoder.add_text_chunk("sdf-upscaler.version".to_owned(), VERSION.to_owned())?;
-    encoder.add_text_chunk(
-        "sdf-upscaler.pipeline".to_owned(),
-        ALPHA_EXPERIMENTAL_PIPELINE_ID.to_owned(),
-    )?;
+    encoder.add_text_chunk("sdf-upscaler.pipeline".to_owned(), pipeline.to_owned())?;
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(data)?;
+    writer.finish()?;
+    fs::rename(&temporary, output)
+        .with_context(|| format!("failed to publish {}", output.display()))?;
+    Ok(())
+}
+
+fn write_rgba_png_atomic(
+    output: &Path,
+    width: usize,
+    height: usize,
+    data: &[u8],
+    pipeline: &str,
+) -> Result<()> {
+    if let Some(parent) = output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let temporary = temporary_path(output);
+    let file = File::create(&temporary)
+        .with_context(|| format!("failed to create {}", temporary.display()))?;
+    let mut encoder = png::Encoder::new(BufWriter::new(file), width as u32, height as u32);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.add_text_chunk("sdf-upscaler.version".to_owned(), VERSION.to_owned())?;
+    encoder.add_text_chunk("sdf-upscaler.pipeline".to_owned(), pipeline.to_owned())?;
     let mut writer = encoder.write_header()?;
     writer.write_image_data(data)?;
     writer.finish()?;
@@ -260,12 +370,48 @@ mod tests {
             }])
         });
         image.save(&input).unwrap();
-        process_one(&input, &output, AlphaOptions::default(), false).unwrap();
+        process_one(
+            &input,
+            &output,
+            Backend::Alpha,
+            AlphaOptions::default(),
+            false,
+        )
+        .unwrap();
 
         let decoded = image::open(&output).unwrap();
         assert_eq!(decoded.dimensions(), (20, 16));
         assert!(manifest_path(&output).is_file());
-        let error = process_one(&input, &output, AlphaOptions::default(), false).unwrap_err();
+        let error = process_one(
+            &input,
+            &output,
+            Backend::Alpha,
+            AlphaOptions::default(),
+            false,
+        )
+        .unwrap_err();
         assert!(error.to_string().contains("--overwrite"));
+    }
+
+    #[test]
+    fn color_and_adaptive_backends_write_rgba() {
+        let directory = tempdir().unwrap();
+        let input = directory.path().join("input.png");
+        let image = image::RgbaImage::from_fn(7, 5, |x, y| {
+            image::Rgba([
+                (x * 31) as u8,
+                (y * 43) as u8,
+                ((x + y) * 19) as u8,
+                if x == 0 || y == 0 { 0 } else { 255 },
+            ])
+        });
+        image.save(&input).unwrap();
+        for backend in [Backend::Color, Backend::Adaptive] {
+            let output = directory.path().join(format!("{backend:?}.png"));
+            process_one(&input, &output, backend, AlphaOptions::default(), false).unwrap();
+            let decoded = image::open(&output).unwrap();
+            assert_eq!(decoded.dimensions(), (28, 20));
+            assert!(decoded.color().has_alpha());
+        }
     }
 }

@@ -1,136 +1,129 @@
 # Rust crate
 
-Status: Alpha-SDF experimental milestone; Python remains canonical.
+Status: canonical Alpha-SDF, Color-SDF, and Adaptive-SDF x4 routes are
+implemented in pure Rust with Python-reference quantized parity.
 
 ## Workspace
 
 ```text
 crates/
-  sdf-upscaler/       # pure library, no image decoder dependency
-  sdf-upscale-cli/    # PNG/image I/O and sdf-upscale binary
+  sdf-upscaler/       # dependency-light slice-based library
+  sdf-upscale-cli/    # image decoding, PNG writing, and sdf-upscale binary
 ```
 
-The workspace uses Rust 2024 and declares MSRV 1.94. Publishing is disabled
-until the repository owner selects a license.
+The workspace uses Rust 2024 and declares MSRV 1.94. Publishing remains
+disabled until the repository owner selects a license.
 
-## Public milestone API
+The parity routes do not call Python, NumPy, Pillow, SciPy, or scikit-image at
+runtime. Private compatibility kernels reproduce the reference stack's
+observable resize, filtering, contour, nearest-neighbor, EDT, Canny, and
+skeleton behavior.
+
+## Library API
 
 ```rust
 use sdf_upscaler::{
-    AlphaInput,
-    AlphaOptions,
-    PlaneRef,
-    upscale_alpha_sdf_x4_experimental,
+    AdaptiveOptions, AlphaInput, ColorOptions, PlaneRef, Rgba8Ref,
+    upscale_adaptive_sdf_x4, upscale_alpha_sdf_x4, upscale_color_sdf_x4,
 };
 
-let input = PlaneRef::packed(width, height, &alpha_u8)?;
-let output = upscale_alpha_sdf_x4_experimental(
-    AlphaInput::U8(input),
-    AlphaOptions::default(),
-)?;
+let alpha = PlaneRef::packed(width, height, &alpha_u8)?;
+let alpha_x4 = upscale_alpha_sdf_x4(AlphaInput::U8(alpha))?;
+
+let rgba = Rgba8Ref::packed(width, height, &rgba_u8)?;
+let color_x4 = upscale_color_sdf_x4(rgba, &ColorOptions::default())?;
+let adaptive_x4 =
+    upscale_adaptive_sdf_x4(rgba, None, &AdaptiveOptions::default())?;
 ```
 
-`PlaneRef` validates nonzero dimensions, stride, buffer length, and overflow.
-The floating-point input route additionally rejects NaN, infinity, and values
-outside `[0, 1]`. Output is a packed `(4H)x(4W)` `Plane<f32>`.
+`PlaneRef` and `Rgba8Ref` validate nonzero dimensions, stride, buffer length,
+and overflow. Floating alpha rejects NaN and infinity. Alpha input accepts
+`u8` or normalized `f32`; RGBA input is packed straight-sRGB `u8`.
 
-The explicit `experimental` suffix is intentional. The current implementation
-ports the existing topology-preserving ROI route:
+Adaptive-SDF accepts an optional x4 `PlaneRef<f32>`. Finite supplied values are
+clipped to `[0, 1]`, used directly by the RGB reconstruction, and preserved
+after ties-to-even `u8` quantization.
 
-1. separable normalized Lanczos-3 x4 base;
-2. marching-squares boundary segments;
-3. edge-local ROI correction;
-4. bounded segment coverage residual;
-5. 0.5 topology lock;
-6. per-LR-cell reprojection no-regression guard.
+### Canonical routes
 
-It is pure Rust and does not call Python, NumPy, SciPy, Pillow, or
-scikit-image.
+- `upscale_alpha_sdf_x4` implements the full Alpha-SDF contour, support,
+  calibration, topology, and SCS route.
+- `upscale_color_sdf_x4` implements SAL-Classic RGB over the canonical alpha
+  segment graph with a linear-light premultiplied fallback.
+- `upscale_adaptive_sdf_x4` adds hidden-RGB-invariant structure extraction,
+  edge-local structure fusion, opaque-interior median residuals,
+  premultiplied back-projection, local reprojection gating, and a whole-image
+  no-regression fallback.
+
+The earlier ROI Alpha implementation is retained as
+`upscale_alpha_sdf_x4_experimental`; its diagnostics continue to identify it
+as experimental rather than canonical parity.
 
 ## CLI
 
+Adaptive-SDF is the default:
+
 ```bash
 cargo run --release -p sdf-upscale-cli -- \
-  input.png \
-  --backend alpha-experimental \
-  --output output.png
+  input.png --output output.png
+```
+
+Select another backend explicitly:
+
+```bash
+cargo run --release -p sdf-upscale-cli -- \
+  input.png --output color.png --backend color
+
+cargo run --release -p sdf-upscale-cli -- \
+  input.png --output alpha.png --backend alpha
 ```
 
 Directory mode and overwrite protection are available:
 
 ```bash
 cargo run --release -p sdf-upscale-cli -- \
-  --dir assets --output outputs \
-  --backend alpha-experimental --overwrite
+  --dir assets --output outputs --backend adaptive --overwrite
 ```
 
-The CLI writes a grayscale PNG, `sdf-upscaler.version` and
-`sdf-upscaler.pipeline` text chunks, plus a JSON sidecar containing the
-quality boundary and diagnostics. Decoder-level EXIF orientation is not yet
-applied; PNG/straight-orientation assets are the supported parity surface for
-this milestone.
+Color and Adaptive write RGBA PNGs; Alpha writes grayscale PNGs. Each output
+contains `sdf-upscaler.version` and `sdf-upscaler.pipeline` text chunks and a
+JSON sidecar with the selected route's summary diagnostics. Decoder-level EXIF
+orientation is not currently applied.
 
-## Frozen Python parity corpus
+## Frozen parity gates
 
-`fixtures/parity/alpha/` contains raw packed planes and a versioned manifest
-generated by `scripts/generate_alpha_golden.py`.
+Raw cross-language fixtures live in `fixtures/parity/alpha`,
+`fixtures/parity/color`, and `fixtures/parity/adaptive`. Generator manifests
+record shapes, dtypes, reference versions, options, and SHA-256 values.
 
-| Plane | Shape | SHA-256 |
-|---|---:|---|
-| Input alpha uint8 | 22x18 | `9a3f1b748b68f66f27732f93ebc321c6c34ccce1517cc3cb1a9cf9ac63b27d13` |
-| Python alpha float32 LE | 88x72 | `3da8d1b79bd605178a918535ee1fd0923f09e2858da882eff86abf5f685c7135` |
-| Python alpha uint8 | 88x72 | `777276c9bbee3a9ebd57b6ae9ae80e178280d6dc0fea6ace970347b4f95d4bd3` |
+| Route | Fixed quantized output SHA-256 |
+|---|---|
+| Alpha-SDF alpha u8 | `777276c9bbee3a9ebd57b6ae9ae80e178280d6dc0fea6ace970347b4f95d4bd3` |
+| Color-SDF RGBA u8 | `f00ce3c04297942c59ad8b7986cb781151a8a3a22374ce1d1484e8beee10219c` |
+| Adaptive-SDF RGBA u8 | `289a9a0f6444883306fee5d7599ce0af3d34244780515e25409bcac91fb38074` |
 
-Current Rust-vs-Python uint8 result:
+Acceptance additionally covers:
 
-| Metric | Result |
-|---|---:|
-| MAE | 1.972222 / 255 |
-| Maximum absolute error | 51 / 255 |
-| Changed pixels | 7.4495% |
-| 0.5-threshold topology changes | 0 |
+- constant, hard-shape, broad-soft, line-art, partial-alpha, holes, open
+  contours, odd-size, and SCS Alpha cases;
+- flat, chroma-split, partial-alpha, transparent, line-art, odd-size, and
+  hidden-RGB Color cases;
+- hidden-RGB pairs, opaque, partial-alpha, transparent, line-art, odd-size,
+  and supplied-alpha Adaptive cases;
+- exact 8-bit Pillow Lanczos behavior and fixed structure edge masks,
+  component labels, 11-channel features, and structure-fusion output;
+- `lr_error_final <= lr_error_base + 1e-9` and no fallback on the Adaptive
+  fixed fixture.
 
-These are drift measurements, not a relaxed definition of parity. The
-canonical promotion gate remains exact uint8 equality.
+The public quality claim is quantized Python-reference parity. A few internal
+Alpha and diagnostic `f32` planes can differ by platform-level ULPs while all
+gated quantized outputs remain exact.
 
-### Real transparent-asset smoke test
+## Validation
 
-The 270x412 character LR asset used by the source repository was reconstructed
-to 1080x1648 and compared with the canonical Python Alpha-SDF output:
-
-| Metric | Result |
-|---|---:|
-| MAE | 0.324300 / 255 |
-| Maximum absolute error | 51 / 255 |
-| Changed pixels | 1.60099% |
-| 0.5-threshold topology changes | 0 |
-
-This is a single self-downsample asset and does not replace the raw golden
-corpus.
-
-## Why parity is not complete
-
-The Python production Alpha-SDF additionally depends on exact semantics from:
-
-- Pillow float-image Lanczos, bicubic, and bilinear resampling;
-- SciPy filters, Euclidean distance transforms, labels, and KD-tree ties;
-- scikit-image contour ordering and skeletonization;
-- NumPy float32/float64 promotion and ties-to-even quantization;
-- adaptive Lanczos, calibration/support gates, centerline bypass, and
-  conditional SCS lift.
-
-The existing Rust ROI engine is therefore not renamed to the canonical
-`upscale_alpha_sdf_x4`.
-
-## Promotion sequence
-
-1. Port and fixture-test Pillow/SciPy/skimage compatibility primitives.
-2. Port the complete `main_alpha_x4_options()` route and require exact alpha
-   bytes on the fixed and randomized corpus.
-3. Expose canonical `upscale_alpha_sdf_x4`.
-4. Port Color-SDF and require the existing
-   `f00ce3c04297942c59ad8b7986cb781151a8a3a22374ce1d1484e8beee10219c`
-   RGBA digest.
-5. Port Adaptive-SDF and require
-   `289a9a0f6444883306fee5d7599ce0af3d34244780515e25409bcac91fb38074`,
-   supplied-alpha preservation, hidden-RGB invariance, and LR no-regression.
+```bash
+cargo fmt --all -- --check
+cargo test --workspace --all-targets
+cargo test --workspace --all-targets --release
+cargo clippy --workspace --all-targets -- -D warnings
+```

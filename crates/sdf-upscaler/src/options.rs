@@ -183,3 +183,111 @@ impl ColorOptions {
         Ok(())
     }
 }
+
+/// Conservative canonical x4 Adaptive-SDF profile.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AdaptiveOptions {
+    pub hidden_rgb_radius: f32,
+    pub hidden_rgb_feather: f32,
+    pub opaque_threshold: f32,
+    pub interior_start_hr: f32,
+    pub interior_stop_hr: f32,
+    pub structure_max_residual: f32,
+    pub structure_strength: f32,
+    pub median_max_residual: f32,
+    pub backprojection_iterations: usize,
+    pub backprojection_strength: f32,
+    pub local_range_epsilon: f32,
+    pub reprojection_window: usize,
+    pub reprojection_transition: f32,
+    pub sal: ColorOptions,
+}
+
+impl Default for AdaptiveOptions {
+    fn default() -> Self {
+        Self {
+            hidden_rgb_radius: 16.0,
+            hidden_rgb_feather: 8.0,
+            opaque_threshold: 0.999,
+            interior_start_hr: 1.0,
+            interior_stop_hr: 4.0,
+            structure_max_residual: 0.02,
+            structure_strength: 1.0,
+            median_max_residual: 0.02,
+            backprojection_iterations: 2,
+            backprojection_strength: 0.5,
+            local_range_epsilon: 0.01,
+            reprojection_window: 5,
+            reprojection_transition: 0.0005,
+            sal: ColorOptions::default(),
+        }
+    }
+}
+
+impl AdaptiveOptions {
+    pub(crate) fn validate(self) -> Result<(), UpscaleError> {
+        self.sal.validate()?;
+        if self.sal.steer_kernel {
+            return Err(UpscaleError::InvalidOptions(
+                "steered Color-SDF kernels are not available in the Adaptive parity route",
+            ));
+        }
+        if !self.hidden_rgb_radius.is_finite() || self.hidden_rgb_radius < 0.0 {
+            return Err(UpscaleError::InvalidOptions(
+                "hidden RGB radius must be finite and non-negative",
+            ));
+        }
+        if !self.hidden_rgb_feather.is_finite()
+            || self.hidden_rgb_feather < 0.0
+            || self.hidden_rgb_feather > self.hidden_rgb_radius
+        {
+            return Err(UpscaleError::InvalidOptions(
+                "hidden RGB feather must be within the radius",
+            ));
+        }
+        if !self.opaque_threshold.is_finite()
+            || self.opaque_threshold <= 0.0
+            || self.opaque_threshold > 1.0
+        {
+            return Err(UpscaleError::InvalidOptions(
+                "opaque threshold must be in (0, 1]",
+            ));
+        }
+        if !self.interior_start_hr.is_finite()
+            || !self.interior_stop_hr.is_finite()
+            || self.interior_start_hr < 0.0
+            || self.interior_start_hr >= self.interior_stop_hr
+        {
+            return Err(UpscaleError::InvalidOptions(
+                "interior bounds require 0 <= start < stop",
+            ));
+        }
+        for value in [
+            self.structure_max_residual,
+            self.median_max_residual,
+            self.local_range_epsilon,
+            self.reprojection_transition,
+        ] {
+            if !value.is_finite() || value < 0.0 {
+                return Err(UpscaleError::InvalidOptions(
+                    "adaptive residual and transition options must be finite and non-negative",
+                ));
+            }
+        }
+        if !self.structure_strength.is_finite()
+            || !(0.0..=1.0).contains(&self.structure_strength)
+            || !self.backprojection_strength.is_finite()
+            || !(0.0..=1.0).contains(&self.backprojection_strength)
+        {
+            return Err(UpscaleError::InvalidOptions(
+                "adaptive strengths must be in [0, 1]",
+            ));
+        }
+        if self.reprojection_window == 0 || self.reprojection_window.is_multiple_of(2) {
+            return Err(UpscaleError::InvalidOptions(
+                "reprojection window must be positive and odd",
+            ));
+        }
+        Ok(())
+    }
+}

@@ -79,7 +79,7 @@ pub fn upscale_color_sdf_x4(
     })
 }
 
-fn segment_guided_rgb(
+pub(crate) fn segment_guided_rgb(
     rgb: &[u8],
     alpha_lr: &[f32],
     alpha_hr: &[f32],
@@ -352,7 +352,7 @@ struct Sample {
     visible: bool,
 }
 
-fn resize_premultiplied_rgb_lanczos(
+pub(crate) fn resize_premultiplied_rgb_lanczos(
     rgb: &[u8],
     alpha: &[f32],
     width: usize,
@@ -406,7 +406,7 @@ fn resize_premultiplied_rgb_lanczos(
         .collect()
 }
 
-fn srgb_to_linear(value: f32) -> f32 {
+pub(crate) fn srgb_to_linear(value: f32) -> f32 {
     if value <= 0.04045 {
         value / 12.92
     } else {
@@ -414,7 +414,7 @@ fn srgb_to_linear(value: f32) -> f32 {
     }
 }
 
-fn linear_to_srgb(value: f32) -> f32 {
+pub(crate) fn linear_to_srgb(value: f32) -> f32 {
     if value <= 0.0031308 {
         value * 12.92
     } else {
@@ -422,7 +422,7 @@ fn linear_to_srgb(value: f32) -> f32 {
     }
 }
 
-fn quantize_u8(value: f32) -> u8 {
+pub(crate) fn quantize_u8(value: f32) -> u8 {
     (value * 255.0).round_ties_even().clamp(0.0, 255.0) as u8
 }
 
