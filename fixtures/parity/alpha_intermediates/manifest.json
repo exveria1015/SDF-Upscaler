@@ -1,0 +1,713 @@
+{
+  "schema_version": 1,
+  "kind": "python_alpha_sdf_intermediate_parity",
+  "input_fixture": {
+    "path": "fixtures/parity/alpha/input_alpha_u8.raw",
+    "manifest": "fixtures/parity/alpha/manifest.json",
+    "sha256": "9a3f1b748b68f66f27732f93ebc321c6c34ccce1517cc3cb1a9cf9ac63b27d13"
+  },
+  "pipeline": {
+    "scale": 4,
+    "options": {
+      "geometry": "segment_adaptive_lanczos",
+      "max_residual": 0.2,
+      "strength": 1.0,
+      "gate_floor": 0.0,
+      "sal_support_radius_normal": 3.0,
+      "sal_support_radius_tangent": 3.0,
+      "sal_steer_kernel": false,
+      "sal_cross_boundary_gate": false,
+      "sal_segment_sample_gate": false,
+      "sal_limit_residual_range": true,
+      "sal_hard_edge_gate": true,
+      "sal_line_art_bypass_enabled": true,
+      "sal_line_art_radius_limit": 0.75,
+      "sal_line_art_min_component": 3,
+      "sal_line_art_neighborhood": 3,
+      "sal_line_art_peak_min": 0.8,
+      "sal_line_art_peak_stop": null,
+      "sal_line_art_max_foreground_area": 4096,
+      "sal_line_art_max_canvas_area": 16384,
+      "sal_line_art_ratio_start": 0.05,
+      "sal_line_art_ratio_stop": 0.15,
+      "calibration_gate_enabled": true,
+      "broad_soft_window": 5,
+      "broad_soft_start": 0.16,
+      "broad_soft_stop": 0.52,
+      "reprojection_window": 5,
+      "reprojection_margin": 0.0,
+      "reprojection_transition": 0.001,
+      "support_gate_enabled": true,
+      "support_window": 9,
+      "support_start": 0.15,
+      "support_stop": 0.5,
+      "support_centerline_bypass_enabled": true,
+      "support_centerline_radius_limit": 0.75,
+      "support_centerline_min_component": 3,
+      "support_centerline_neighborhood": 3,
+      "support_centerline_peak_min": 0.8,
+      "support_centerline_peak_stop": null,
+      "support_centerline_max_foreground_area": 4096,
+      "support_centerline_ratio_start": 0.1,
+      "support_centerline_ratio_stop": 0.3,
+      "scs_after_sal_enabled": true,
+      "scs_medial_radius_limit": 0.75,
+      "scs_centerline_gate_threshold": 1.0,
+      "scs_min_centerline_component": 3,
+      "scs_max_foreground_area": 4096,
+      "scs_max_lift": 0.2,
+      "scs_require_hard_foreground": true,
+      "residual_edge_gate": false,
+      "topology_lock": true
+    }
+  },
+  "versions": {
+    "numpy": "2.4.6",
+    "pillow": "12.3.0",
+    "scipy": "1.18.0",
+    "scikit-image": "0.26.0",
+    "sdf-upscaler": "0.1.0"
+  },
+  "absent_stages": [],
+  "arrays": [
+    {
+      "id": "calibration/base_reprojected_lr_f32",
+      "path": "calibration/base_reprojected_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "24cc4f6d9d40c72618785fcbce0fdd41795348ffa20bf6ad60f78eb933ca5f45"
+    },
+    {
+      "id": "calibration/broad_soft_gate_lr_f32",
+      "path": "calibration/broad_soft_gate_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "4694766b15ee1a7d60cf6864c38550a57a52c74cb16101e597a76ff2450d8086"
+    },
+    {
+      "id": "calibration/broad_soft_score_lr_f32",
+      "path": "calibration/broad_soft_score_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "f05d04aa94630f8d2c9371b773117f95917c48abfe7fe385041e16ceab69e165"
+    },
+    {
+      "id": "calibration/candidate_reprojected_lr_f32",
+      "path": "calibration/candidate_reprojected_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "c8197eb586b5bc8cd82484d7a7544bb3ccf7c3f843688b7c32597229f9299546"
+    },
+    {
+      "id": "calibration/centerline_support_gate_lr_f32",
+      "path": "calibration/centerline_support_gate_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "c87499548f9efbd98c824a95a664af38f414efb1c9eede544e55e019473d6b24"
+    },
+    {
+      "id": "calibration/combined_gate_hr_f32",
+      "path": "calibration/combined_gate_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "17911153eee00b269a0d091cd00640740afb4c615fcb2dcc905f8cf3b52c7619"
+    },
+    {
+      "id": "calibration/intermediate_mass_lr_f32",
+      "path": "calibration/intermediate_mass_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "c912fbf4e35119fc05b8e08e8c4c088289e48fa6ed08f90d2e334601eb6f3e47"
+    },
+    {
+      "id": "calibration/reprojection_error_base_lr_f32",
+      "path": "calibration/reprojection_error_base_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "4108a9f03b921269b91e6c78bf4966554ca983a9f1794e88f44a47dd6bb916e3"
+    },
+    {
+      "id": "calibration/reprojection_error_candidate_lr_f32",
+      "path": "calibration/reprojection_error_candidate_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "b261f293fd4b93a53d41bb591754dfbb56df207096c9c999c8064deb4737fe90"
+    },
+    {
+      "id": "calibration/reprojection_gain_lr_f32",
+      "path": "calibration/reprojection_gain_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "5b3a98e9b86994858f7b7b7faed55909fe6108db6d9fa4bbda1fac9cebdd01ac"
+    },
+    {
+      "id": "calibration/reprojection_gate_lr_f32",
+      "path": "calibration/reprojection_gate_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "431af4acbd9a9df1a3d2ec42a3a052636adabc91adf30d570205cf66f0386af7"
+    },
+    {
+      "id": "calibration/support_gate_lr_f32",
+      "path": "calibration/support_gate_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "cadfda8ae5e902b8ac6caaffd48fc3dd3e0656da1e459cc32a85d140668b8fcd"
+    },
+    {
+      "id": "calibration/support_score_lr_f32",
+      "path": "calibration/support_score_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "574fcdf1fef90af36f89079146412582bf24eab65543736f221263f7aa1de4fa"
+    },
+    {
+      "id": "contours/ambiguous_input_f32",
+      "path": "contours/ambiguous_input_f32.raw",
+      "shape": [
+        2,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 16,
+      "sha256": "d72fb9fe14d3250816558b2800a2205f395174fe86c62efa3dbbea0e998f802c"
+    },
+    {
+      "id": "contours/ambiguous_lengths_i32",
+      "path": "contours/ambiguous_lengths_i32.raw",
+      "shape": [
+        2
+      ],
+      "dtype": "little-endian int32",
+      "byte_length": 8,
+      "sha256": "41d805e613efbe1acb36eaa0127a35da4a1faa1ac97985d078e50d1fd96055fd"
+    },
+    {
+      "id": "contours/ambiguous_points_f32",
+      "path": "contours/ambiguous_points_f32.raw",
+      "shape": [
+        4,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 32,
+      "sha256": "be7ca2ff097414b50b60b717810e406fa95953bb1d248d1105e332d56e8e955a"
+    },
+    {
+      "id": "contours/border_input_f32",
+      "path": "contours/border_input_f32.raw",
+      "shape": [
+        3,
+        3
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 36,
+      "sha256": "19c26b41d386ba67e7aefd9781d5b3b85a8e1c5c9deced69a95ea7406960675e"
+    },
+    {
+      "id": "contours/border_lengths_i32",
+      "path": "contours/border_lengths_i32.raw",
+      "shape": [
+        1
+      ],
+      "dtype": "little-endian int32",
+      "byte_length": 4,
+      "sha256": "fb5e512425fc9449316ec95969ebe71e2d576dbab833d61e2a5b9330fd70ee02"
+    },
+    {
+      "id": "contours/border_points_f32",
+      "path": "contours/border_points_f32.raw",
+      "shape": [
+        4,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 32,
+      "sha256": "8bb2f3ea8e6e922682543d5649356ad1ae0f7a0fad08fb47df5ddbbe78f01b91"
+    },
+    {
+      "id": "filters/broad_soft_uniform_lr_f32",
+      "path": "filters/broad_soft_uniform_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "f05d04aa94630f8d2c9371b773117f95917c48abfe7fe385041e16ceab69e165"
+    },
+    {
+      "id": "filters/local_background_lr_f32",
+      "path": "filters/local_background_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "4c1edc5c8d8a21904192e28073beaa1627e44e98fd533a7e0ef3136da619a8a3"
+    },
+    {
+      "id": "filters/local_foreground_lr_f32",
+      "path": "filters/local_foreground_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "18082d9b083a390fdb0858063b18fdbf453861a3a4275925ec1d961fcdce0780"
+    },
+    {
+      "id": "filters/sobel_x_lr_f32",
+      "path": "filters/sobel_x_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "2d0bcb6a3b59a04c481d3b3ea395163cc1bc144b50cf3bf4eb8577e0b2940347"
+    },
+    {
+      "id": "filters/sobel_y_lr_f32",
+      "path": "filters/sobel_y_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "4132671e822caa5832de528dbe677cc12e801b4261997581d9263468d1dfbafa"
+    },
+    {
+      "id": "geometry/analytic_coverage_lr_f32",
+      "path": "geometry/analytic_coverage_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "aed3709e6d7ade1870f0ca147ec7d108429983ede37041213de5949d4c6f849a"
+    },
+    {
+      "id": "geometry/contour_arc_midpoints_f32",
+      "path": "geometry/contour_arc_midpoints_f32.raw",
+      "shape": [
+        52
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 208,
+      "sha256": "6a2154d4398f592f5f1c2f99479e1ac83c7c6832578be433e8b087c5cdad483c"
+    },
+    {
+      "id": "geometry/contour_closed_u8",
+      "path": "geometry/contour_closed_u8.raw",
+      "shape": [
+        1
+      ],
+      "dtype": "uint8",
+      "byte_length": 1,
+      "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+    },
+    {
+      "id": "geometry/contour_ends_f32",
+      "path": "geometry/contour_ends_f32.raw",
+      "shape": [
+        52,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 416,
+      "sha256": "c968674a1b93b0682c616151a8ad84a2a81f91a9d704b103e625ed36c80c434f"
+    },
+    {
+      "id": "geometry/contour_ids_i32",
+      "path": "geometry/contour_ids_i32.raw",
+      "shape": [
+        52
+      ],
+      "dtype": "little-endian int32",
+      "byte_length": 208,
+      "sha256": "46f531b7ea0428fbf2c3ca2b60e8dc33d6bbfa000e0fd1b489c5e39140a47006"
+    },
+    {
+      "id": "geometry/contour_lengths_f32",
+      "path": "geometry/contour_lengths_f32.raw",
+      "shape": [
+        1
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 4,
+      "sha256": "3fb846fba064c9d57dee953192cef68d5c224b1b3a192959144cc552341804c3"
+    },
+    {
+      "id": "geometry/contour_starts_f32",
+      "path": "geometry/contour_starts_f32.raw",
+      "shape": [
+        52,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 416,
+      "sha256": "778e5266e12b32b0c24c0caff07dfd7b7b331d748d183983cd902a876ea0fd85"
+    },
+    {
+      "id": "geometry/contour_tangents_f32",
+      "path": "geometry/contour_tangents_f32.raw",
+      "shape": [
+        52,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 416,
+      "sha256": "b44ed2e2c4a8c80ac8cdf8f262f7861ef36c99552d2cb9822a0a3976d144c505"
+    },
+    {
+      "id": "geometry/hr_nearest_segment_i64",
+      "path": "geometry/hr_nearest_segment_i64.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian int64",
+      "byte_length": 50688,
+      "sha256": "603f28699a000c89ec2cfc6e782009ae2de56adb576e522db0275c8e166ad16c"
+    },
+    {
+      "id": "geometry/lr_nearest_segment_i64",
+      "path": "geometry/lr_nearest_segment_i64.raw",
+      "shape": [
+        396
+      ],
+      "dtype": "little-endian int64",
+      "byte_length": 3168,
+      "sha256": "0cd5faaa90bffd7d1b7178958a20b50d5a2805c44ea718bd3ae7d3ca10677bd2"
+    },
+    {
+      "id": "geometry/residual_lr_f32",
+      "path": "geometry/residual_lr_f32.raw",
+      "shape": [
+        18,
+        22
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 1584,
+      "sha256": "19734870392fd2e15403ee6fab10804f9e3826cc2b436d2b3f21539a7422784b"
+    },
+    {
+      "id": "geometry/segment_coverage_hr_f32",
+      "path": "geometry/segment_coverage_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "512ccd8b894b28a2a8e59eac0f1f4198a5c484771c2d52907967e43a8b184a59"
+    },
+    {
+      "id": "geometry/segment_order_i32",
+      "path": "geometry/segment_order_i32.raw",
+      "shape": [
+        52
+      ],
+      "dtype": "little-endian int32",
+      "byte_length": 208,
+      "sha256": "31a6efbff8499c3624a358032cba947ecf14ab0971e97d3574a1c2c35a31e57b"
+    },
+    {
+      "id": "k12/exact_closest_f32",
+      "path": "k12/exact_closest_f32.raw",
+      "shape": [
+        3,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 24,
+      "sha256": "e429c453fa124bb8f79e42886def40dac5d07bec02055e65b5b662d3d7158599"
+    },
+    {
+      "id": "k12/exact_distances_f32",
+      "path": "k12/exact_distances_f32.raw",
+      "shape": [
+        3
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 12,
+      "sha256": "15ec7bf0b50732b49f8228e07d24365338f9e3ab994b00af08e5a3bffe55fd8b"
+    },
+    {
+      "id": "k12/exact_indices_i64",
+      "path": "k12/exact_indices_i64.raw",
+      "shape": [
+        3
+      ],
+      "dtype": "little-endian int64",
+      "byte_length": 24,
+      "sha256": "8ad23ef50d206a44123443cb9f869fc225532addbfb4d37602cdb5d95d405fed"
+    },
+    {
+      "id": "k12/query_points_f32",
+      "path": "k12/query_points_f32.raw",
+      "shape": [
+        3,
+        2
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 24,
+      "sha256": "e429c453fa124bb8f79e42886def40dac5d07bec02055e65b5b662d3d7158599"
+    },
+    {
+      "id": "k12/tree_distances_f32",
+      "path": "k12/tree_distances_f32.raw",
+      "shape": [
+        3,
+        12
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 144,
+      "sha256": "7af829cf190d1f55bc693564efa8fd6e05c0b8e04f086735dfefc9e48a9b08ea"
+    },
+    {
+      "id": "k12/tree_indices_i64",
+      "path": "k12/tree_indices_i64.raw",
+      "shape": [
+        3,
+        12
+      ],
+      "dtype": "little-endian int64",
+      "byte_length": 288,
+      "sha256": "45033d975fd1f20dafcfaafa473719fd25c03990af3076046ce11f711b9bbc2e"
+    },
+    {
+      "id": "pillow/bilinear_7x5_f32",
+      "path": "pillow/bilinear_7x5_f32.raw",
+      "shape": [
+        5,
+        7
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 140,
+      "sha256": "567220da55e7e271cccbd1acdc9052e43c804ea02ed0e05c9f3f0ee1c6315f85"
+    },
+    {
+      "id": "pillow/lanczos_7x5_f32",
+      "path": "pillow/lanczos_7x5_f32.raw",
+      "shape": [
+        5,
+        7
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 140,
+      "sha256": "6917be71c42017d1349b3e99f6f80cb2c3b53bd27e574229ea925a232ce811a2"
+    },
+    {
+      "id": "pillow/source_f32",
+      "path": "pillow/source_f32.raw",
+      "shape": [
+        2,
+        3
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 24,
+      "sha256": "93b8ee8f559435013bcebc7ae9f62144c3c0c945ca6aba16020ee42c2d1221d0"
+    },
+    {
+      "id": "scipy/convolve_nearest_f32",
+      "path": "scipy/convolve_nearest_f32.raw",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 48,
+      "sha256": "3434885f28ff92dcf7a495c60d2f03bdf02d223fc7f1c8217ebdbb3df5006316"
+    },
+    {
+      "id": "scipy/sobel_x_nearest_f32",
+      "path": "scipy/sobel_x_nearest_f32.raw",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 48,
+      "sha256": "f65f646a8b86c134300dc3ed1d0864268cb8cbd929018ceedb664c008616a4dc"
+    },
+    {
+      "id": "scipy/sobel_y_nearest_f32",
+      "path": "scipy/sobel_y_nearest_f32.raw",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 48,
+      "sha256": "3cfe36378e84015d1f91e1f02127011220fe48ffdfe0ba5fec0d1a6201eda4ed"
+    },
+    {
+      "id": "scipy/source_f32",
+      "path": "scipy/source_f32.raw",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 48,
+      "sha256": "29e1889124dc651e7bb488251123910767d042ae6dc47c280ec364655e24ab49"
+    },
+    {
+      "id": "scipy/uniform_3_nearest_f32",
+      "path": "scipy/uniform_3_nearest_f32.raw",
+      "shape": [
+        3,
+        4
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 48,
+      "sha256": "51ceca43e7c66d5e848ee071ae5cca45c4ce8b9f25e5e8bd6271df6a603fb589"
+    },
+    {
+      "id": "stages/base_lanczos_hr_f32",
+      "path": "stages/base_lanczos_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "ad54f1c9d97ec5d6eebafe215d1af5ea627bf5c4ee35a818548524769f18b58d"
+    },
+    {
+      "id": "stages/candidate_hr_f32",
+      "path": "stages/candidate_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "c020142c7c61eb5174182d88021aceea27b504b2f59dcc87ff9a78d34900f1f8"
+    },
+    {
+      "id": "stages/final_hr_f32",
+      "path": "stages/final_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "3da8d1b79bd605178a918535ee1fd0923f09e2858da882eff86abf5f685c7135"
+    },
+    {
+      "id": "stages/protected_hr_f32",
+      "path": "stages/protected_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "3da8d1b79bd605178a918535ee1fd0923f09e2858da882eff86abf5f685c7135"
+    },
+    {
+      "id": "stages/reliability_hr_f32",
+      "path": "stages/reliability_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "eb44112ea3467d20ef969e10eb62ff89a8bc226b5c5758fbab699e17d6355545"
+    },
+    {
+      "id": "stages/reliable_sample_mask_hr_u8",
+      "path": "stages/reliable_sample_mask_hr_u8.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "uint8",
+      "byte_length": 6336,
+      "sha256": "9aa2c0708889045380768ad61eb39672cd2b93b92a434379d599970c5de604ec"
+    },
+    {
+      "id": "stages/scs_lift_hr_f32",
+      "path": "stages/scs_lift_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "6f51e5e322486fb217dc1056279db1a58e8a3209a8d3cf4b3de92c7bb5a04d9e"
+    },
+    {
+      "id": "stages/ungated_hr_f32",
+      "path": "stages/ungated_hr_f32.raw",
+      "shape": [
+        72,
+        88
+      ],
+      "dtype": "little-endian float32",
+      "byte_length": 25344,
+      "sha256": "a2cde5e96ca54df3982a91b692bd5840ea6099f3e359613c681962df441f5db1"
+    }
+  ]
+}

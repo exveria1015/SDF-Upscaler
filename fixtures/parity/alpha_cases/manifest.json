@@ -1,0 +1,405 @@
+{
+  "schema_version": 1,
+  "kind": "python_alpha_sdf_x4_parity_corpus",
+  "pipeline": {
+    "id": "python-alpha-sdf/main-alpha-x4/sal-r0-gsupport-scs/v1",
+    "scale": 4,
+    "options": {
+      "geometry": "segment_adaptive_lanczos",
+      "max_residual": 0.2,
+      "strength": 1.0,
+      "gate_floor": 0.0,
+      "sal_support_radius_normal": 3.0,
+      "sal_support_radius_tangent": 3.0,
+      "sal_steer_kernel": false,
+      "sal_cross_boundary_gate": false,
+      "sal_segment_sample_gate": false,
+      "sal_limit_residual_range": true,
+      "sal_hard_edge_gate": true,
+      "sal_line_art_bypass_enabled": true,
+      "sal_line_art_radius_limit": 0.75,
+      "sal_line_art_min_component": 3,
+      "sal_line_art_neighborhood": 3,
+      "sal_line_art_peak_min": 0.8,
+      "sal_line_art_peak_stop": null,
+      "sal_line_art_max_foreground_area": 4096,
+      "sal_line_art_max_canvas_area": 16384,
+      "sal_line_art_ratio_start": 0.05,
+      "sal_line_art_ratio_stop": 0.15,
+      "calibration_gate_enabled": true,
+      "broad_soft_window": 5,
+      "broad_soft_start": 0.16,
+      "broad_soft_stop": 0.52,
+      "reprojection_window": 5,
+      "reprojection_margin": 0.0,
+      "reprojection_transition": 0.001,
+      "support_gate_enabled": true,
+      "support_window": 9,
+      "support_start": 0.15,
+      "support_stop": 0.5,
+      "support_centerline_bypass_enabled": true,
+      "support_centerline_radius_limit": 0.75,
+      "support_centerline_min_component": 3,
+      "support_centerline_neighborhood": 3,
+      "support_centerline_peak_min": 0.8,
+      "support_centerline_peak_stop": null,
+      "support_centerline_max_foreground_area": 4096,
+      "support_centerline_ratio_start": 0.1,
+      "support_centerline_ratio_stop": 0.3,
+      "scs_after_sal_enabled": true,
+      "scs_medial_radius_limit": 0.75,
+      "scs_centerline_gate_threshold": 1.0,
+      "scs_min_centerline_component": 3,
+      "scs_max_foreground_area": 4096,
+      "scs_max_lift": 0.2,
+      "scs_require_hard_foreground": true,
+      "residual_edge_gate": false,
+      "topology_lock": true
+    }
+  },
+  "versions": {
+    "numpy": "2.4.6",
+    "pillow": "12.3.0",
+    "scipy": "1.18.0",
+    "scikit-image": "0.26.0",
+    "sdf-upscaler": "0.1.0"
+  },
+  "cases": [
+    {
+      "id": "zero",
+      "description": "constant zero alpha",
+      "input": {
+        "path": "zero/input_alpha_u8.raw",
+        "width": 9,
+        "height": 7,
+        "dtype": "uint8",
+        "byte_length": 63,
+        "sha256": "c7723fa1e0127975e49e62e753db53924c1bd84b8ac1ac08df78d09270f3d971"
+      },
+      "output": {
+        "width": 36,
+        "height": 28,
+        "float": {
+          "path": "zero/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 4032,
+          "sha256": "782972264d2f448a7741cb6afbc10275ffde7e1d3f5f9005fd45543a7c2b81b5"
+        },
+        "uint8": {
+          "path": "zero/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1008,
+          "sha256": "a9e080790cc3b9e7a988324b4ec1cc1432a8f43cf897c78318943a0670f171f6"
+        }
+      }
+    },
+    {
+      "id": "one",
+      "description": "constant one alpha",
+      "input": {
+        "path": "one/input_alpha_u8.raw",
+        "width": 9,
+        "height": 7,
+        "dtype": "uint8",
+        "byte_length": 63,
+        "sha256": "d12449c8124182545ae91924286cc6af13528bcf62a5ddbd5e00b891fffc1b48"
+      },
+      "output": {
+        "width": 36,
+        "height": 28,
+        "float": {
+          "path": "one/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 4032,
+          "sha256": "378150703e7babaf72be919a72b140071efc50018dbe591b669708f3a3942ead"
+        },
+        "uint8": {
+          "path": "one/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1008,
+          "sha256": "966f82fbf808f6c30964347713717f9a070d87c246cc7d291e0b721b8b62b501"
+        }
+      }
+    },
+    {
+      "id": "broad_soft",
+      "description": "broad non-endpoint soft gradient",
+      "input": {
+        "path": "broad_soft/input_alpha_u8.raw",
+        "width": 11,
+        "height": 9,
+        "dtype": "uint8",
+        "byte_length": 99,
+        "sha256": "b38f9ee9f350997b42dc1ca226e3a09aeabc0ec5adf5df923f58f1bd0f25c1c2"
+      },
+      "output": {
+        "width": 44,
+        "height": 36,
+        "float": {
+          "path": "broad_soft/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 6336,
+          "sha256": "0537526065e9ca7f3c7bbb45c1c83f0bff1f04b2273f4537d9cca00077d92976"
+        },
+        "uint8": {
+          "path": "broad_soft/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1584,
+          "sha256": "44fd4b1cde92e4704310c07f57778059cf308b4883d6dc2061341807c8a70eed"
+        }
+      }
+    },
+    {
+      "id": "rectangle",
+      "description": "hard filled rectangle",
+      "input": {
+        "path": "rectangle/input_alpha_u8.raw",
+        "width": 13,
+        "height": 9,
+        "dtype": "uint8",
+        "byte_length": 117,
+        "sha256": "cf768ec2d69c18fccfa97cb4c497d6b146130c1267591c4e13ba43a5dcd30402"
+      },
+      "output": {
+        "width": 52,
+        "height": 36,
+        "float": {
+          "path": "rectangle/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 7488,
+          "sha256": "3c9fafdcb72abe49cbbaa57eb65ad12d2bcff53fbd163387713513f830a6807f"
+        },
+        "uint8": {
+          "path": "rectangle/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1872,
+          "sha256": "a26d254db43c19025a368a5ae008339ec712f422301713dc14d66b5639d86b37"
+        }
+      }
+    },
+    {
+      "id": "ellipse",
+      "description": "hard filled ellipse",
+      "input": {
+        "path": "ellipse/input_alpha_u8.raw",
+        "width": 15,
+        "height": 11,
+        "dtype": "uint8",
+        "byte_length": 165,
+        "sha256": "b37d8d24c7829b113470d6353839e863e1c4cf21a0bf3280f85541467a3bcd50"
+      },
+      "output": {
+        "width": 60,
+        "height": 44,
+        "float": {
+          "path": "ellipse/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 10560,
+          "sha256": "38ced1bebdbcded61e9d4c4a1459c0c3f99d72c2de5c748c476b27df1f7c0834"
+        },
+        "uint8": {
+          "path": "ellipse/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 2640,
+          "sha256": "8d53ca7178176fab275ba4128ba21e165af28229d55f76cb667b825d416e0fe5"
+        }
+      }
+    },
+    {
+      "id": "line_horizontal",
+      "description": "one-pixel horizontal line art",
+      "input": {
+        "path": "line_horizontal/input_alpha_u8.raw",
+        "width": 13,
+        "height": 7,
+        "dtype": "uint8",
+        "byte_length": 91,
+        "sha256": "2c484bf7f315daf34b9db580f99da16e7ee288b5279144005bb0d0bd28b120fb"
+      },
+      "output": {
+        "width": 52,
+        "height": 28,
+        "float": {
+          "path": "line_horizontal/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 5824,
+          "sha256": "8e4bd812b7d6950d2723ae229c27906571d8f569cda5914f419f7f5dfa41ac81"
+        },
+        "uint8": {
+          "path": "line_horizontal/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1456,
+          "sha256": "a6261c46d7770805748aa95b400ea044921a1fd34efaa8949e9ce047a2a25849"
+        }
+      }
+    },
+    {
+      "id": "line_vertical",
+      "description": "one-pixel vertical line art",
+      "input": {
+        "path": "line_vertical/input_alpha_u8.raw",
+        "width": 7,
+        "height": 13,
+        "dtype": "uint8",
+        "byte_length": 91,
+        "sha256": "3f8c5f59492acdd8b57b92ba6f2afe50177207c83c243b3454599ede76f44545"
+      },
+      "output": {
+        "width": 28,
+        "height": 52,
+        "float": {
+          "path": "line_vertical/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 5824,
+          "sha256": "9cd1ee8a5eb0cbd2635f3ac4fb1e86bbfd658a087b0e05c00ffdab6b06ef7222"
+        },
+        "uint8": {
+          "path": "line_vertical/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1456,
+          "sha256": "2ee141e81e53348d3d913098a14b9a8ab9037e0b9d05c88e3d78da124d597951"
+        }
+      }
+    },
+    {
+      "id": "line_diagonal",
+      "description": "one-pixel diagonal line art",
+      "input": {
+        "path": "line_diagonal/input_alpha_u8.raw",
+        "width": 11,
+        "height": 11,
+        "dtype": "uint8",
+        "byte_length": 121,
+        "sha256": "8d79c650236960c979fbde0e4d80b06e6ff166965076bf62908d08498f78a0a7"
+      },
+      "output": {
+        "width": 44,
+        "height": 44,
+        "float": {
+          "path": "line_diagonal/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 7744,
+          "sha256": "14920b047203d406f3c7f9f58edfd926a03647eafa20f8e4a2e13e67a8ec21d7"
+        },
+        "uint8": {
+          "path": "line_diagonal/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1936,
+          "sha256": "25d7c12be7aea844a3abde5bba04cbd66a602de82e68c383926f1b8c770bb2f2"
+        }
+      }
+    },
+    {
+      "id": "holes",
+      "description": "filled region with a rectangular hole",
+      "input": {
+        "path": "holes/input_alpha_u8.raw",
+        "width": 15,
+        "height": 13,
+        "dtype": "uint8",
+        "byte_length": 195,
+        "sha256": "fc734b0e6bae9009051a527dff6708875c61925d844795671c58047223498783"
+      },
+      "output": {
+        "width": 60,
+        "height": 52,
+        "float": {
+          "path": "holes/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 12480,
+          "sha256": "7fabfc0a3668cff62b47ea5926b2d38d764ad4acc45d9e0ad3a4a4ea8ee45f42"
+        },
+        "uint8": {
+          "path": "holes/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 3120,
+          "sha256": "6f5f77091423307a76a545aea376a36a362805fa1a878ce394cf99d5342064b0"
+        }
+      }
+    },
+    {
+      "id": "open_contour",
+      "description": "open one-pixel C contour",
+      "input": {
+        "path": "open_contour/input_alpha_u8.raw",
+        "width": 15,
+        "height": 13,
+        "dtype": "uint8",
+        "byte_length": 195,
+        "sha256": "51ebe3cd1825d462ad9bd467c2956a04bf2213473847f1493acec69948808727"
+      },
+      "output": {
+        "width": 60,
+        "height": 52,
+        "float": {
+          "path": "open_contour/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 12480,
+          "sha256": "36f845d0b5e4ce204898aa56222ee31a46cb414fce11833ea327f01444595a97"
+        },
+        "uint8": {
+          "path": "open_contour/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 3120,
+          "sha256": "803b8973199a9aec20744ce5d72502d0fc059e6c26b30147ca05ce6a0ba0c724"
+        }
+      }
+    },
+    {
+      "id": "partial_alpha_edges",
+      "description": "hard rectangle with partial-alpha edge samples",
+      "input": {
+        "path": "partial_alpha_edges/input_alpha_u8.raw",
+        "width": 13,
+        "height": 9,
+        "dtype": "uint8",
+        "byte_length": 117,
+        "sha256": "e2f663f41b7e40940d120963ecbf9e0bfb9d0805a967b8a52e8e6f5c7a34eb86"
+      },
+      "output": {
+        "width": 52,
+        "height": 36,
+        "float": {
+          "path": "partial_alpha_edges/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 7488,
+          "sha256": "04e1597364bc9b2674309bb14b516bb15f556d8fba9f4debb95191665019d817"
+        },
+        "uint8": {
+          "path": "partial_alpha_edges/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1872,
+          "sha256": "1199ced1865e27c4078d2d4373c7aedf643241e74a0b8bbe3cd05ad13975c117"
+        }
+      }
+    },
+    {
+      "id": "odd_size_motif",
+      "description": "asymmetric odd-sized line-art motif",
+      "input": {
+        "path": "odd_size_motif/input_alpha_u8.raw",
+        "width": 11,
+        "height": 9,
+        "dtype": "uint8",
+        "byte_length": 99,
+        "sha256": "132e1bc8940ff79b97b25fc346bcadad8f835203b404e6ad9343467a06482dcd"
+      },
+      "output": {
+        "width": 44,
+        "height": 36,
+        "float": {
+          "path": "odd_size_motif/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 6336,
+          "sha256": "f60388faee5c4a76f895c81e220c4e02694a354de8334bac95e83fc3d29fad42"
+        },
+        "uint8": {
+          "path": "odd_size_motif/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1584,
+          "sha256": "15d174f8476c52fd9c8eb02af4ad5716b07be240bf0a155209edfae34fc9398b"
+        }
+      }
+    }
+  ]
+}
