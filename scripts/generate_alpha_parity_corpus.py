@@ -118,6 +118,30 @@ def _odd_size_motif() -> np.ndarray:
     return alpha
 
 
+def _scs_lift() -> np.ndarray:
+    """Sparse partial-alpha branch whose protected SAL center needs SCS lift."""
+
+    alpha = _canvas(9, 9)
+    for (y, x), value in {
+        (3, 4): 255,
+        (4, 1): 191,
+        (4, 3): 191,
+        (4, 4): 191,
+        (5, 2): 191,
+        (5, 4): 153,
+        (6, 2): 191,
+        (6, 3): 230,
+        (6, 4): 130,
+        (6, 5): 230,
+        (7, 4): 191,
+        (7, 5): 255,
+        (7, 6): 153,
+        (7, 7): 191,
+    }.items():
+        alpha[y, x] = value
+    return alpha
+
+
 CASES: tuple[tuple[str, str, Callable[[], np.ndarray]], ...] = (
     ("zero", "constant zero alpha", _zero),
     ("one", "constant one alpha", _one),
@@ -131,6 +155,7 @@ CASES: tuple[tuple[str, str, Callable[[], np.ndarray]], ...] = (
     ("open_contour", "open one-pixel C contour", _open_contour),
     ("partial_alpha_edges", "hard rectangle with partial-alpha edge samples", _partial_alpha_edges),
     ("odd_size_motif", "asymmetric odd-sized line-art motif", _odd_size_motif),
+    ("scs_lift", "partial-alpha thin branch with active SCS medial lift", _scs_lift),
 )
 
 

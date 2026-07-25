@@ -1,5 +1,5 @@
 use sdf_upscaler::{
-    AlphaInput, AlphaOptions, PlaneRef, QualityBoundary, quantize_alpha_u8,
+    AlphaInput, AlphaOptions, PlaneRef, QualityBoundary, quantize_alpha_u8, upscale_alpha_sdf_x4,
     upscale_alpha_sdf_x4_experimental,
 };
 
@@ -7,6 +7,30 @@ const WIDTH: usize = 22;
 const HEIGHT: usize = 18;
 const OUTPUT_WIDTH: usize = WIDTH * 4;
 const OUTPUT_HEIGHT: usize = HEIGHT * 4;
+
+#[test]
+fn canonical_route_matches_python_quantized_golden() {
+    let input = include_bytes!("../../../fixtures/parity/alpha/input_alpha_u8.raw");
+    let expected = include_bytes!("../../../fixtures/parity/alpha/expected_alpha_u8.raw");
+    let plane = PlaneRef::packed(WIDTH, HEIGHT, input).unwrap();
+    let output = upscale_alpha_sdf_x4(AlphaInput::U8(plane)).unwrap();
+
+    assert_eq!(output.alpha.width(), OUTPUT_WIDTH);
+    assert_eq!(output.alpha.height(), OUTPUT_HEIGHT);
+    assert_eq!(
+        output.diagnostics.quality_boundary,
+        QualityBoundary::PythonReferenceQuantizedParity
+    );
+    assert_eq!(quantize_alpha_u8(output.alpha.as_slice()), expected);
+
+    let normalized = input
+        .iter()
+        .map(|&value| f32::from(value) / 255.0)
+        .collect::<Vec<_>>();
+    let float_plane = PlaneRef::packed(WIDTH, HEIGHT, &normalized).unwrap();
+    let float_output = upscale_alpha_sdf_x4(AlphaInput::F32(float_plane)).unwrap();
+    assert_eq!(output.alpha, float_output.alpha);
+}
 
 #[test]
 fn experimental_route_is_measured_against_python_golden() {

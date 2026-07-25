@@ -400,6 +400,34 @@
           "sha256": "15d174f8476c52fd9c8eb02af4ad5716b07be240bf0a155209edfae34fc9398b"
         }
       }
+    },
+    {
+      "id": "scs_lift",
+      "description": "partial-alpha thin branch with active SCS medial lift",
+      "input": {
+        "path": "scs_lift/input_alpha_u8.raw",
+        "width": 9,
+        "height": 9,
+        "dtype": "uint8",
+        "byte_length": 81,
+        "sha256": "c7f5066ce7c5f9af6e2fb0a645a492c2472937a18f2cf68a396688a4095b5fc9"
+      },
+      "output": {
+        "width": 36,
+        "height": 36,
+        "float": {
+          "path": "scs_lift/expected_alpha_f32_le.raw",
+          "dtype": "little-endian float32",
+          "byte_length": 5184,
+          "sha256": "21e5e193942df68c2171c0549c8659ec39ce6114ceb731d8bcf644095ef3d001"
+        },
+        "uint8": {
+          "path": "scs_lift/expected_alpha_u8.raw",
+          "dtype": "uint8",
+          "byte_length": 1296,
+          "sha256": "53931eab13ae658a33bf791c3d11fcf189892394d29a7fd4691d1a8c688dadc9"
+        }
+      }
     }
   ]
 }

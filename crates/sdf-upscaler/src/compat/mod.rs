@@ -10,6 +10,12 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+mod morphology;
+
+#[allow(unused_imports)]
+// Direct-path integration tests include this module without Alpha-SDF.
+pub(crate) use morphology::{distance_transform_edt, label_8, skeletonize_zhang};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Resample {
     Bilinear,

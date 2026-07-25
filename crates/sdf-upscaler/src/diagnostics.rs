@@ -2,14 +2,16 @@ use serde::Serialize;
 
 use crate::Plane;
 
-/// Explicit quality status for the currently available Rust route.
+/// Explicit validation boundary for a Rust route.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QualityBoundary {
+    /// Quantized alpha bytes match the pinned Python parity corpus.
+    PythonReferenceQuantizedParity,
     ExperimentalNotPythonParity,
 }
 
-/// Diagnostics for the Rust-native Alpha-SDF ROI milestone.
+/// Diagnostics for an Alpha-SDF invocation.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct AlphaDiagnostics {
     pub implementation: &'static str,

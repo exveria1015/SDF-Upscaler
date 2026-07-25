@@ -2,6 +2,8 @@ use crate::{
     AlphaDiagnostics, AlphaInput, AlphaOptions, AlphaOutput, Plane, QualityBoundary, UpscaleError,
 };
 
+mod canonical;
+
 const SCALE: usize = 4;
 const LEVEL: f32 = 0.5;
 const GRID_CELL_SIZE: f32 = 2.0;
@@ -85,6 +87,60 @@ impl SegmentGrid {
         }
         best.map(|segment| (segment, best_squared.sqrt()))
     }
+}
+
+/// Upscale alpha with the canonical x4 Alpha-SDF pipeline.
+///
+/// The quantized output is byte-exact against the pinned Python parity
+/// corpus, including hard shapes, partial-alpha edges, line-art bypasses, and
+/// an active SCS medial-lift case.
+pub fn upscale_alpha_sdf_x4(input: AlphaInput<'_>) -> Result<AlphaOutput, UpscaleError> {
+    let (alpha, width, height) = normalize_input(input)?;
+    let output_width = width
+        .checked_mul(SCALE)
+        .ok_or(UpscaleError::DimensionOverflow)?;
+    let output_height = height
+        .checked_mul(SCALE)
+        .ok_or(UpscaleError::DimensionOverflow)?;
+    output_width
+        .checked_mul(output_height)
+        .ok_or(UpscaleError::DimensionOverflow)?;
+    let stages = canonical::canonical_stages(&alpha, width, height)?;
+    let endpoint_count = alpha
+        .iter()
+        .filter(|&&value| value <= 0.05 || value >= 0.95)
+        .count();
+    let endpoint_fraction = endpoint_count as f64 / alpha.len() as f64;
+    let constant_value = alpha[0];
+    let constant_alpha = (constant_value == 0.0 || constant_value == 1.0)
+        && alpha.iter().all(|&value| value == constant_value);
+    let changed = quantize_alpha_u8(&stages.final_alpha)
+        .into_iter()
+        .zip(quantize_alpha_u8(&stages.base))
+        .filter(|(left, right)| left != right)
+        .count();
+    let reliable = stages
+        .reliability
+        .iter()
+        .filter(|&&value| value > 0.0)
+        .count();
+    let diagnostics = AlphaDiagnostics {
+        implementation: crate::ALPHA_CANONICAL_PIPELINE_ID,
+        quality_boundary: QualityBoundary::PythonReferenceQuantizedParity,
+        input_size: [width, height],
+        output_size: [output_width, output_height],
+        constant_alpha_fast_path: constant_alpha,
+        broad_soft_lanczos_fallback: false,
+        endpoint_fraction,
+        segment_count: stages.graph.segments.len(),
+        roi_fraction: reliable as f64 / stages.reliability.len() as f64,
+        guard_accept_fraction: 1.0,
+        changed_from_lanczos_fraction: changed as f64 / stages.final_alpha.len() as f64,
+    };
+    Ok(AlphaOutput {
+        alpha: Plane::new(output_width, output_height, stages.final_alpha)?,
+        diagnostics,
+    })
 }
 
 /// Run the explicitly experimental pure-Rust Alpha-SDF ROI route.
